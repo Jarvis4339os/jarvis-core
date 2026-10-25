@@ -46,7 +46,7 @@
   </div>
 
 <script>
-  // ===== CONFIG =====
+  // ===== CONFIG (Aapka Connected Cloudflare Worker) =====
   const WORKER_URL = "https://jarvis-api.sachinsainimbd4339.workers.dev";
 
   // ===== ELEMENTS =====
@@ -55,7 +55,7 @@
   const transcriptDiv = document.getElementById('transcript');
   const errorBox = document.getElementById('errorBox');
 
-  let history = [];
+  let history = [];          // conversation memory
   let isSpeaking = false;
   let activeLoop = false;
   let currentUtterance = null;
@@ -71,7 +71,7 @@
   }
 
   function pickVoice() {
-    return voices.find(v => v.lang.toLowerCase().startsWith('hi') && /male|man/i.test(v.name))
+    return voices.find(v => (v.lang.toLowerCase().startsWith('hi') || v.lang === 'en-IN') && /male|man|deep/i.test(v.name))
         || voices.find(v => v.lang.toLowerCase().startsWith('hi'))
         || voices.find(v => v.lang === 'en-IN')
         || null;
@@ -105,7 +105,7 @@
 
     recognition.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        errorBox.innerText = "Mic permission nahi mili. Browser settings mein mic allow karein (HTTPS / GitHub Pages par hi chalega).";
+        errorBox.innerText = "Mic permission allow karein.";
         stopJarvis();
       }
     };
@@ -126,7 +126,7 @@
 
   function startJarvis() {
     if (!SpeechRecognition) {
-      errorBox.innerText = "Is browser mein voice recognition nahi hai. Android/PC par Google Chrome use karein.";
+      errorBox.innerText = "Is browser mein voice recognition nahi hai. Chrome browser use karein.";
       return;
     }
     activeLoop = true;
@@ -154,7 +154,7 @@
       return;
     }
     if (/(date|tarikh|aaj kya din|तारीख)/.test(t)) {
-      speak(`Sir, aaj ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} hai.`);
+      speak(`Sir, aaj ${new Date().toLocaleDateString('hi-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} hai.`);
       return;
     }
     if (/(youtube|यूट्यूब)/.test(t) && /(khol|open|खोल)/.test(t)) {
@@ -166,7 +166,7 @@
     askGemini(text);
   }
 
-  // ===== GEMINI (Cloudflare Worker ke through) =====
+  // ===== GEMINI VIA CLOUDFLARE WORKER =====
   async function askGemini(promptText) {
     errorBox.innerText = "";
     history.push({ role: "user", parts: [{ text: promptText }] });
@@ -185,9 +185,9 @@
       if (!res.ok || !data.reply) {
         history.pop();
         if (data.status === 401 || data.status === 403) {
-          errorBox.innerText = "Gemini key galat/band hai. Cloudflare mein GEMINI_KEY secret badlein.";
+          errorBox.innerText = "Gemini key issue: Cloudflare mein GEMINI_KEY check karein.";
         } else {
-          errorBox.innerText = "Server Error: " + (data.error || res.status);
+          errorBox.innerText = "Worker Error: " + (data.error || res.status);
         }
         smartLocalAI(promptText);
         return;
@@ -209,11 +209,11 @@
     if (/(kaun ho|who are you|naam|कौन|नाम)/.test(t)) reply = "Main JARVIS hoon sir, aapka personal Avengers AI assistant.";
     else if (/(kaise ho|haal|कैसे)/.test(t)) reply = "Main bilkul badhiya hoon sir. Aap batayein aaj kya naya banana hai?";
     else if (/(iron man|tony|avengers|आयरन)/.test(t)) reply = "Stark protocols fully active hain sir. Mark suits standby par hain.";
-    else reply = "Sorry sir, abhi main online brain se connect nahi ho pa raha. Please internet check karein.";
+    else reply = "Sorry sir, connection mein issue aaya hai. Main standby par hoon.";
     speak(reply);
   }
 
-  // ===== TEXT TO SPEECH =====
+  // ===== MALE DEEP ROBOTIC VOICE =====
   function speak(text, after) {
     transcriptDiv.innerText = `JARVIS: ${text}`;
     if (!window.speechSynthesis) { if (after) after(); return; }
@@ -226,7 +226,9 @@
     currentUtterance = u;
     const v = pickVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'hi-IN'; }
-    u.pitch = 0.7;
+    
+    // Male robotic tone (low pitch)
+    u.pitch = 0.65;
     u.rate = 1.0;
 
     let finished = false;
@@ -238,7 +240,7 @@
       if (after) { after(); return; }
       if (activeLoop) { statusText.innerText = 'JARVIS SUN RAHA HAI...'; setTimeout(restartListening, 350); }
     };
-
+    
     const safety = setTimeout(done, 4000 + text.length * 90);
 
     u.onstart = () => { orb.className = 'center-orb speaking'; statusText.innerText = 'JARVIS BOL RAHA HAI...'; };
