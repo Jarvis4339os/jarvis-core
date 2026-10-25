@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -16,27 +16,34 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '20'
 
-      - name: Build APK via Cordova
+      - name: Build Web App & Capacitor Android
         run: |
-          npm install -g cordova
-          cordova create jarvisapp com.jarvis.hud "JARVIS"
-          cd jarvisapp
-          rm -rf www/*
-          cp ../index.html www/index.html
-          cordova platform add android
-          cordova build android --debug
+          mkdir -p www
+          cp index.html www/
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "JARVIS" "com.jarvis.hud" --web-dir www
+          npx cap add android
 
-      - name: Upload APK
+      - name: Set Android Permissions
+        run: |
+          sed -i '/<application/i <uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
+          npx cap sync android
+
+      - name: Build APK via Gradle
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK File
         uses: actions/upload-artifact@v4
         with:
           name: JARVIS-App
-          path: jarvisapp/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           
