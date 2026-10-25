@@ -10,25 +10,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java JDK 17
-        uses: actions/setup-java@v4
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Accept Android SDK Licenses
-        run: |
-          yes | sdkmanager --licenses || true
-
-      - name: Setup Capacitor Project
+      - name: Setup Web Directory & Capacitor
         run: |
           mkdir -p www
-          cp index.html www/
+          cp index.html www/index.html
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
           cat << 'EOF' > capacitor.config.json
@@ -40,20 +36,20 @@ jobs:
           EOF
           npx cap add android
 
-      - name: Inject Permissions
+      - name: Inject Android Permissions
         run: |
           sed -i '/<application/i <uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
           npx cap sync android
 
-      - name: Build APK via Gradle
+      - name: Build Debug APK
+        working-directory: android
         run: |
-          cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx2048m"
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-APK
+          name: JARVIS-App
           path: android/app/build/outputs/apk/debug/app-debug.apk
           
