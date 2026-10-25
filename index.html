@@ -5,11 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>JARVIS HUD AI</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: #02060d;
       color: #00e5ff;
@@ -22,7 +18,6 @@
       overflow: hidden;
       touch-action: manipulation;
     }
-
     .core-container {
       position: relative;
       width: 270px;
@@ -32,7 +27,6 @@
       justify-content: center;
       cursor: pointer;
     }
-
     .ring-outer {
       position: absolute;
       width: 100%;
@@ -41,7 +35,6 @@
       border-radius: 50%;
       animation: rotateRing 12s linear infinite;
     }
-
     .ring-inner {
       position: absolute;
       width: 75%;
@@ -52,7 +45,6 @@
       animation: rotateRingRev 5s linear infinite;
       box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
     }
-
     .center-orb {
       width: 95px;
       height: 95px;
@@ -67,43 +59,27 @@
       letter-spacing: 2px;
       transition: all 0.3s ease;
     }
-
-    .speaking {
-      animation: pulseCore 0.8s infinite alternate;
-    }
-
+    .speaking { animation: pulseCore 0.8s infinite alternate; }
     .listening-mode {
       box-shadow: 0 0 55px #00ff66 !important;
       background: radial-gradient(circle, #00ff66 0%, #004d1a 80%) !important;
     }
-
     .thinking-mode {
       box-shadow: 0 0 55px #ffaa00 !important;
       background: radial-gradient(circle, #ffaa00 0%, #664400 80%) !important;
     }
-
-    @keyframes rotateRing {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes rotateRingRev {
-      from { transform: rotate(360deg); }
-      to { transform: rotate(0deg); }
-    }
-
+    @keyframes rotateRing { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes rotateRingRev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
     @keyframes pulseCore {
       from { transform: scale(1); box-shadow: 0 0 35px #ff0055; background: radial-gradient(circle, #ff0055 0%, #4a0018 80%); }
       to { transform: scale(1.15); box-shadow: 0 0 65px #ff0055; background: radial-gradient(circle, #ff5588 0%, #4a0018 80%); }
     }
-
     .status-panel {
       margin-top: 35px;
       text-align: center;
       width: 90%;
       max-width: 450px;
     }
-
     #statusText {
       font-size: 14px;
       letter-spacing: 3px;
@@ -111,7 +87,6 @@
       text-transform: uppercase;
       margin-bottom: 12px;
     }
-
     #transcript {
       background: rgba(0, 229, 255, 0.05);
       border: 1px solid rgba(0, 229, 255, 0.2);
@@ -121,6 +96,12 @@
       font-size: 15px;
       line-height: 1.5;
       text-shadow: 0 0 5px rgba(0, 229, 255, 0.5);
+    }
+    #errorBox {
+      color: #ff4444;
+      font-size: 12px;
+      margin-top: 8px;
+      word-break: break-all;
     }
   </style>
 </head>
@@ -135,15 +116,16 @@
   <div class="status-panel">
     <div id="statusText">TAP CORE TO START</div>
     <div id="transcript">Jarvis online hai. Ek baar tap karein...</div>
+    <div id="errorBox"></div>
   </div>
 
 <script>
-  // Aapki Gemini API Key
   const API_KEY = "AQ.Ab8RN6I-vjmDeoHx6XNzbBdy1Yz3St_-f9Yia9ikpYaTTcxlIA";
 
   const orb = document.getElementById('orb');
   const statusText = document.getElementById('statusText');
   const transcriptDiv = document.getElementById('transcript');
+  const errorBox = document.getElementById('errorBox');
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition;
@@ -189,62 +171,70 @@
   function startJarvis() {
     if (activeLoop) return;
     activeLoop = true;
-    speakMaleHindi("Namaste sir. Jarvis activate ho chuka hai. Mark system tayar hai. Kahiye, main kya karoon?");
+    speakMaleHindi("Namaste sir. Jarvis activate ho chuka hai. Boliye main kya karoon?");
   }
 
-  // Fast AI Backend Caller (Header + Parameter Both Supported)
   async function askGeminiFast(promptText) {
-    const systemPrompt = "Aap Avengers ke male artificial intelligence JARVIS hain. User ka naam Sachin hai. Hamesha 'Sir' keh kar aadar ke sath pure Hindi ya Hinglish mein jawab dein. Jawab concise, dynamic aur robotic tone mein 1 ya 2 line mein dein. Kisi markdown (*, #) ka use mat karein.";
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+    errorBox.innerText = "";
+    const systemPrompt = "Aap Marvel Avengers ke male AI JARVIS hain. User se aadar se 'Sir' keh kar Hindi mein baat karein. Jawab bilkul chota, accurate aur bina kisi symbol (*, #) ke 1-2 sentence mein dein.";
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': API_KEY
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{
             parts: [{ text: `${systemPrompt}\n\nUser: ${promptText}` }]
-          }],
-          generationConfig: {
-            maxOutputTokens: 100,
-            temperature: 0.6
-          }
+          }]
         })
       });
 
       const data = await response.json();
+
+      if (data.error) {
+        errorBox.innerText = "API Error: " + data.error.message;
+        smartLocalAI(promptText);
+        return;
+      }
+
       if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
         let reply = data.candidates[0].content.parts[0].text.replace(/[*#_]/g, '').trim();
         transcriptDiv.innerText = `JARVIS: ${reply}`;
         speakMaleHindi(reply);
       } else {
-        fallbackSmartReply(promptText);
+        smartLocalAI(promptText);
       }
     } catch (err) {
-      fallbackSmartReply(promptText);
+      errorBox.innerText = "Network/CORS: " + err.message;
+      smartLocalAI(promptText);
     }
   }
 
-  // Fallback Local Logic agar internet ya API mein late ho
-  function fallbackSmartReply(text) {
-    let lower = text.toLowerCase();
-    let reply = "Sir, maine aapki baat suni hai. Main system check kar raha hoon.";
-    if (lower.includes("kaun ho") || lower.includes("naam")) {
-      reply = "Main Jarvis hoon sir, aapka personal male AI agent.";
-    } else if (lower.includes("time") || lower.includes("samay") || lower.includes("baje")) {
+  // Real Dynamic Assistant Logic (Kabhi ek jaisa boring jawab nahi dega)
+  function smartLocalAI(text) {
+    let t = text.toLowerCase();
+    let reply = "";
+
+    if (t.includes("kaun ho") || t.includes("who are you") || t.includes("naam")) {
+      reply = "Main JARVIS hoon sir, aapka personal Avengers AI assistant.";
+    } else if (t.includes("time") || t.includes("samay") || t.includes("baje")) {
       reply = `Sir, abhi samay ${new Date().toLocaleTimeString('hi-IN')} ho raha hai.`;
-    } else if (lower.includes("kaise ho") || lower.includes("haal")) {
-      reply = "Main bilkul operational hoon sir. Bataiye aage kya plan hai?";
+    } else if (t.includes("kya kar rahe ho") || t.includes("kya chal raha")) {
+      reply = "Main aapke system diagnostics aur agle mission ki taiyari dekh raha hoon, sir.";
+    } else if (t.includes("kaise ho") || t.includes("haal")) {
+      reply = "Main bilkul badhiya hoon sir. Aap batayein aaj kya naya banana hai?";
+    } else if (t.includes("iron man") || t.includes("tony") || t.includes("avengers")) {
+      reply = "Stark protocols fully active hain sir. Mark suits launching bay mein standby par hain.";
+    } else if (t.includes("theek") || t.includes("achha") || t.includes("badhiya")) {
+      reply = "Bohat badhiya sir. Boliye agla kya kaam karna hai?";
+    } else {
+      reply = `Sir, aapne kaha '${text}'. Main is par turant action le raha hoon.`;
     }
+
     transcriptDiv.innerText = `JARVIS: ${reply}`;
     speakMaleHindi(reply);
   }
 
-  // DEEP MALE ROBOTIC VOICE ENGINE
   function speakMaleHindi(text) {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
@@ -253,18 +243,13 @@
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'hi-IN';
-
-    // Pitch 0.65 se aawaz deep aur male robotic banti hai
-    utterance.pitch = 0.65;
+    utterance.pitch = 0.65; // Heavy male pitch
     utterance.rate = 1.0;
 
     const voices = window.speechSynthesis.getVoices();
-    const maleVoice = voices.find(v => 
-      (v.lang.includes('hi') || v.name.includes('Hindi')) && 
-      (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('man') || v.name.toLowerCase().includes('deep'))
-    ) || voices.find(v => v.lang.includes('hi') || v.name.includes('Hindi'));
-
-    if (maleVoice) utterance.voice = maleVoice;
+    const hindiVoice = voices.find(v => (v.lang.includes('hi') || v.name.includes('Hindi')) && (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('man'))) 
+                       || voices.find(v => v.lang.includes('hi') || v.name.includes('Hindi'));
+    if (hindiVoice) utterance.voice = hindiVoice;
 
     utterance.onstart = () => {
       orb.className = 'center-orb speaking';
