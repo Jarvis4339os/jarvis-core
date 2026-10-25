@@ -29,9 +29,12 @@
     #statusText { font-size: 14px; letter-spacing: 3px; opacity: .8; text-transform: uppercase; margin-bottom: 12px; }
     #transcript { background: rgba(0,229,255,.05); border: 1px solid rgba(0,229,255,.2); border-radius: 8px; padding: 15px; min-height: 55px; font-size: 15px; line-height: 1.5; text-shadow: 0 0 5px rgba(0,229,255,.5); }
     #errorBox { color: #ff4444; font-size: 12px; margin-top: 8px; word-break: break-word; }
+    video { display: none; }
   </style>
 </head>
 <body>
+
+  <video id="cameraStream" autoplay playsinline></video>
 
   <div class="core-container" id="core">
     <div class="ring-outer"></div>
@@ -40,28 +43,26 @@
   </div>
 
   <div class="status-panel">
-    <div id="statusText">TAP CORE TO START</div>
-    <div id="transcript">Jarvis online hai. Ek baar tap karein...</div>
+    <div id="statusText">INITIALIZING SYSTEM...</div>
+    <div id="transcript">Jarvis online ho raha hai...</div>
     <div id="errorBox"></div>
   </div>
 
 <script>
-  // ===== CONFIG (Aapka Connected Cloudflare Worker) =====
   const WORKER_URL = "https://jarvis-api.sachinsainimbd4339.workers.dev";
 
-  // ===== ELEMENTS =====
   const orb = document.getElementById('orb');
   const statusText = document.getElementById('statusText');
   const transcriptDiv = document.getElementById('transcript');
   const errorBox = document.getElementById('errorBox');
+  const videoElem = document.getElementById('cameraStream');
 
-  let history = [];          // conversation memory
+  let history = [];
   let isSpeaking = false;
   let activeLoop = false;
   let currentUtterance = null;
   let voices = [];
 
-  // ===== VOICES =====
   function loadVoices() {
     voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
   }
@@ -77,7 +78,6 @@
         || null;
   }
 
-  // ===== SPEECH RECOGNITION =====
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
 
@@ -106,7 +106,6 @@
     recognition.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         errorBox.innerText = "Mic permission allow karein.";
-        stopJarvis();
       }
     };
 
@@ -121,16 +120,11 @@
     try { recognition.start(); } catch (e) {}
   }
 
-  // ===== START / STOP =====
   document.getElementById('core').onclick = () => activeLoop ? stopJarvis() : startJarvis();
 
   function startJarvis() {
-    if (!SpeechRecognition) {
-      errorBox.innerText = "Is browser mein voice recognition nahi hai. Chrome browser use karein.";
-      return;
-    }
     activeLoop = true;
-    speak("Namaste sir. Jarvis activate ho chuka hai. Boliye, main aapki kya help karoon?");
+    speak("Namaste sir. Jarvis online ho chuka hai. Main aapki kya sahayata karoon?");
   }
 
   function stopJarvis() {
@@ -139,10 +133,9 @@
     try { recognition && recognition.abort(); } catch (e) {}
     if (window.speechSynthesis) speechSynthesis.cancel();
     orb.className = 'center-orb';
-    statusText.innerText = 'TAP CORE TO START';
+    statusText.innerText = 'TAP CORE TO RESUME';
   }
 
-  // ===== COMMANDS =====
   function handleCommand(text) {
     const t = text.toLowerCase();
     if (/(band karo|so jao|stop jarvis|bye|alvida)/.test(t)) {
@@ -158,15 +151,18 @@
       return;
     }
     if (/(youtube|यूट्यूब)/.test(t) && /(khol|open|खोल)/.test(t)) {
-      speak("YouTube khol raha hoon sir."); window.open("https://www.youtube.com", "_blank"); return;
+      speak("YouTube khol raha hoon sir.");
+      window.location.href = "vnd.youtube://";
+      return;
     }
     if (/(google|गूगल)/.test(t) && /(khol|open|खोल)/.test(t)) {
-      speak("Google khol raha hoon sir."); window.open("https://www.google.com", "_blank"); return;
+      speak("Google khol raha hoon sir.");
+      window.location.href = "googlechrome://";
+      return;
     }
     askGemini(text);
   }
 
-  // ===== GEMINI VIA CLOUDFLARE WORKER =====
   async function askGemini(promptText) {
     errorBox.innerText = "";
     history.push({ role: "user", parts: [{ text: promptText }] });
@@ -184,11 +180,7 @@
 
       if (!res.ok || !data.reply) {
         history.pop();
-        if (data.status === 401 || data.status === 403) {
-          errorBox.innerText = "Gemini key issue: Cloudflare mein GEMINI_KEY check karein.";
-        } else {
-          errorBox.innerText = "Worker Error: " + (data.error || res.status);
-        }
+        errorBox.innerText = "Worker Error: " + (data.error || res.status);
         smartLocalAI(promptText);
         return;
       }
@@ -202,18 +194,14 @@
     }
   }
 
-  // ===== OFFLINE FALLBACK =====
   function smartLocalAI(text) {
     const t = text.toLowerCase();
-    let reply;
+    let reply = "Ji sir, main sun raha hoon.";
     if (/(kaun ho|who are you|naam|कौन|नाम)/.test(t)) reply = "Main JARVIS hoon sir, aapka personal Avengers AI assistant.";
-    else if (/(kaise ho|haal|कैसे)/.test(t)) reply = "Main bilkul badhiya hoon sir. Aap batayein aaj kya naya banana hai?";
-    else if (/(iron man|tony|avengers|आयरन)/.test(t)) reply = "Stark protocols fully active hain sir. Mark suits standby par hain.";
-    else reply = "Sorry sir, connection mein issue aaya hai. Main standby par hoon.";
+    else if (/(kaise ho|haal|कैसे)/.test(t)) reply = "Main bilkul badhiya hoon sir. Aap batayein aaj kya hukum hai?";
     speak(reply);
   }
 
-  // ===== MALE DEEP ROBOTIC VOICE =====
   function speak(text, after) {
     transcriptDiv.innerText = `JARVIS: ${text}`;
     if (!window.speechSynthesis) { if (after) after(); return; }
@@ -226,8 +214,6 @@
     currentUtterance = u;
     const v = pickVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'hi-IN'; }
-    
-    // Male robotic tone (low pitch)
     u.pitch = 0.65;
     u.rate = 1.0;
 
@@ -240,7 +226,6 @@
       if (after) { after(); return; }
       if (activeLoop) { statusText.innerText = 'JARVIS SUN RAHA HAI...'; setTimeout(restartListening, 350); }
     };
-    
     const safety = setTimeout(done, 4000 + text.length * 90);
 
     u.onstart = () => { orb.className = 'center-orb speaking'; statusText.innerText = 'JARVIS BOL RAHA HAI...'; };
@@ -248,6 +233,22 @@
     u.onerror = done;
     speechSynthesis.speak(u);
   }
+
+  // ===== AUTO-START & CAMERA/MIC PERMISSION REQUEST ON LAUNCH =====
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        videoElem.srcObject = stream;
+      }
+    } catch (err) {
+      console.log("Hardware permission note:", err);
+    }
+    // Auto-boot sequence
+    setTimeout(() => {
+      startJarvis();
+    }, 1200);
+  });
 </script>
 </body>
 </html>
