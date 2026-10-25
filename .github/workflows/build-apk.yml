@@ -22,41 +22,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Initialize Web Assets & Capacitor
+      - name: Build APK via Cordova
         run: |
-          mkdir -p www
-          cp index.html www/
-          npm init -y
-          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
-          cat << 'EOF' > capacitor.config.json
-          {
-            "appId": "com.jarvis.hud",
-            "appName": "JARVIS",
-            "webDir": "www",
-            "bundledWebRuntime": false
-          }
-          EOF
-          npx cap add android
-
-      - name: Add Audio & Internet Permissions
-        run: |
-          sed -i '/<application/i <uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
-
-      - name: Sync Capacitor
-        run: |
-          npx cap sync android
-
-      - name: Build Android APK
-        working-directory: ./android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          npm install -g cordova
+          cordova create jarvisapp com.jarvis.hud "JARVIS"
+          cd jarvisapp
+          rm -rf www/*
+          cp ../index.html www/index.html
+          cordova platform add android
+          cordova build android --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-App-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: JARVIS-App
+          path: jarvisapp/platforms/android/app/build/outputs/apk/debug/app-debug.apk
           
