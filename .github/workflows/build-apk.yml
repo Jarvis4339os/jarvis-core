@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -19,31 +19,41 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
-      - name: Build Web App & Capacitor Android
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
+      - name: Setup Capacitor Project
         run: |
           mkdir -p www
           cp index.html www/
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "JARVIS" "com.jarvis.hud" --web-dir www
+          cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.jarvis.hud",
+            "appName": "JARVIS",
+            "webDir": "www"
+          }
+          EOF
           npx cap add android
 
-      - name: Set Android Permissions
+      - name: Inject Permissions
         run: |
           sed -i '/<application/i <uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
           npx cap sync android
 
       - name: Build APK via Gradle
-        working-directory: android
         run: |
+          cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx2048m"
 
-      - name: Upload APK File
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-App
+          name: JARVIS-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           
