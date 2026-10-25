@@ -47,8 +47,7 @@
 
 <script>
   // ===== CONFIG =====
-  // Apne Cloudflare Worker ka link yahan daalein. API key ab is file mein NAHI hai.
-  const WORKER_URL = "https://jarvis-api.YOUR-NAME.workers.dev";
+  const WORKER_URL = "https://jarvis-api.sachinsainimbd4339.workers.dev";
 
   // ===== ELEMENTS =====
   const orb = document.getElementById('orb');
@@ -56,10 +55,10 @@
   const transcriptDiv = document.getElementById('transcript');
   const errorBox = document.getElementById('errorBox');
 
-  let history = [];          // conversation memory
+  let history = [];
   let isSpeaking = false;
   let activeLoop = false;
-  let currentUtterance = null; // GC bug se bachane ke liye global reference
+  let currentUtterance = null;
   let voices = [];
 
   // ===== VOICES =====
@@ -68,7 +67,7 @@
   }
   if (window.speechSynthesis) {
     loadVoices();
-    speechSynthesis.onvoiceschanged = loadVoices; // Chrome voices baad mein load karta hai
+    speechSynthesis.onvoiceschanged = loadVoices;
   }
 
   function pickVoice() {
@@ -86,7 +85,7 @@
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'hi-IN'; // hi-IN Hinglish (Hindi + English words) dono samajhta hai
+    recognition.lang = 'hi-IN';
 
     recognition.onstart = () => {
       if (!isSpeaking) {
@@ -109,7 +108,6 @@
         errorBox.innerText = "Mic permission nahi mili. Browser settings mein mic allow karein (HTTPS / GitHub Pages par hi chalega).";
         stopJarvis();
       }
-      // 'no-speech' / 'aborted' normal hain, onend loop sambhal lega
     };
 
     recognition.onend = () => {
@@ -130,9 +128,6 @@
     if (!SpeechRecognition) {
       errorBox.innerText = "Is browser mein voice recognition nahi hai. Android/PC par Google Chrome use karein.";
       return;
-    }
-    if (WORKER_URL.includes("YOUR-NAME")) {
-      errorBox.innerText = "Code mein WORKER_URL abhi set nahi hai. Apne Cloudflare Worker ka link daalein.";
     }
     activeLoop = true;
     speak("Namaste sir. Jarvis activate ho chuka hai. Boliye, main aapki kya help karoon?");
@@ -175,7 +170,7 @@
   async function askGemini(promptText) {
     errorBox.innerText = "";
     history.push({ role: "user", parts: [{ text: promptText }] });
-    if (history.length > 16) history = history.slice(-16); // sirf last 8 baatein yaad rakho
+    if (history.length > 16) history = history.slice(-16);
     if (history[0].role !== "user") history.shift();
 
     try {
@@ -243,7 +238,7 @@
       if (after) { after(); return; }
       if (activeLoop) { statusText.innerText = 'JARVIS SUN RAHA HAI...'; setTimeout(restartListening, 350); }
     };
-    // Android Chrome kabhi onend fire nahi karta, isliye backup timer
+
     const safety = setTimeout(done, 4000 + text.length * 90);
 
     u.onstart = () => { orb.className = 'center-orb speaking'; statusText.innerText = 'JARVIS BOL RAHA HAI...'; };
