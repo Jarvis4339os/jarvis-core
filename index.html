@@ -134,11 +134,12 @@
 
   <div class="status-panel">
     <div id="statusText">TAP CORE TO START</div>
-    <div id="transcript">Jarvis Core Standby. Ek baar touch karke active karein...</div>
+    <div id="transcript">Jarvis online hai. Ek baar tap karein...</div>
   </div>
 
 <script>
-  let apiKey = localStorage.getItem('gemini_api_key') || "";
+  // Direct Inbuilt API Key
+  const API_KEY = "AQ.Ab8RN6Kskt9czcu5jfbDuIV5RSf8eBDBLs4A_a2HwKJHlmNLGA";
 
   const orb = document.getElementById('orb');
   const statusText = document.getElementById('statusText');
@@ -165,18 +166,18 @@
       const userText = event.results[0][0].transcript;
       transcriptDiv.innerText = `Aap: "${userText}"`;
       orb.className = 'center-orb thinking-mode';
-      statusText.innerText = 'PROCESSING...';
-      askGeminiAI(userText);
+      statusText.innerText = 'JARVIS SOCH RAHA HAI...';
+      askGeminiFast(userText);
     };
 
     recognition.onerror = () => {
       orb.className = 'center-orb';
-      if (activeLoop && !isSpeaking) setTimeout(restartListening, 1000);
+      if (activeLoop && !isSpeaking) setTimeout(restartListening, 600);
     };
 
     recognition.onend = () => {
       orb.className = 'center-orb';
-      if (activeLoop && !isSpeaking) setTimeout(restartListening, 800);
+      if (activeLoop && !isSpeaking) setTimeout(restartListening, 500);
     };
   }
 
@@ -186,53 +187,59 @@
   }
 
   function startJarvis() {
-    if (!apiKey) {
-      const inputKey = prompt("Sir, apni Gemini API Key paste kijiye:");
-      if (inputKey) {
-        apiKey = inputKey.trim();
-        localStorage.setItem('gemini_api_key', apiKey);
-      }
-    }
-
     if (activeLoop) return;
     activeLoop = true;
-    speakMaleHindi("Namaste sir. Jarvis online ho chuka hai. Mark protocol activated. Boliye, main kya madad karoon?");
+    speakMaleHindi("Namaste sir. Jarvis online hai. Main aapke aadesh ke liye taiyar hoon.");
   }
 
-  // GEMINI AI ENGINE
-  async function askGeminiAI(promptText) {
-    if (!apiKey) {
-      speakMaleHindi("Sir, kripya pehle apni Gemini API key add kijiye.");
-      return;
-    }
-
-    const systemPrompt = "Aap Marvel Avengers ke male AI JARVIS hain. User ka naam Sachin hai. Hamesha unhe 'Sir' keh kar aadar ke sath pure Hindi mein jawab dein. Jawab concise, dynamic aur robotic tone mein hona chahiye. Koi markdown jaise stars ya bullet mat lagaiye.";
+  // Fast AI Backend
+  async function askGeminiFast(promptText) {
+    const systemPrompt = "Aap Avengers ke male artificial intelligence JARVIS hain. User se hamesha aadar se 'Sir' keh kar Hinglish ya saral Hindi mein baat karein. Jawab bilkul chota, seedha aur bina kisi bullet points ya markdown symbols (*, #) ke dein, taaki turant aawaz mein bola ja sake.";
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{
             parts: [{ text: `${systemPrompt}\n\nUser: ${promptText}` }]
-          }]
+          }],
+          generationConfig: {
+            maxOutputTokens: 120,
+            temperature: 0.6
+          }
         })
       });
 
       const data = await response.json();
-      if (data.candidates && data.candidates[0].content.parts[0].text) {
-        let reply = data.candidates[0].content.parts[0].text.replace(/[*#_]/g, '');
+      if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
+        let reply = data.candidates[0].content.parts[0].text.replace(/[*#_]/g, '').trim();
         transcriptDiv.innerText = `JARVIS: ${reply}`;
         speakMaleHindi(reply);
       } else {
-        speakMaleHindi("Sir, response receive nahi hua.");
+        fallbackSmartReply(promptText);
       }
     } catch (err) {
-      speakMaleHindi("Network connection mein problem aa rahi hai sir.");
+      fallbackSmartReply(promptText);
     }
   }
 
-  // MALE ROBOTIC VOICE ENGINE
+  // Backup Local Logic agar internet slow ho
+  function fallbackSmartReply(text) {
+    let lower = text.toLowerCase();
+    let reply = "Sir, main aapki baat sun raha hoon. Kripya apna agla command batayein.";
+    if (lower.includes("kaun ho") || lower.includes("naam")) {
+      reply = "Main Jarvis hoon sir, aapka personal assistant.";
+    } else if (lower.includes("time") || lower.includes("samay") || lower.includes("baje")) {
+      reply = `Sir, abhi samay ${new Date().toLocaleTimeString('hi-IN')} ho raha hai.`;
+    } else if (lower.includes("kaise ho") || lower.includes("haal")) {
+      reply = "Main bilkul badhiya hoon sir. Aapka aadesh sar aankhon par.";
+    }
+    transcriptDiv.innerText = `JARVIS: ${reply}`;
+    speakMaleHindi(reply);
+  }
+
+  // MALE VOICE SYNTHESIS
   function speakMaleHindi(text) {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
@@ -241,19 +248,13 @@
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'hi-IN';
-    
-    // Male deep tone settings (low pitch gives strong male voice)
-    utterance.pitch = 0.72; 
-    utterance.rate = 0.95;
+    utterance.pitch = 0.65; // Deep heavy male tone
+    utterance.rate = 1.05;  // Fast response
 
     const voices = window.speechSynthesis.getVoices();
-    // Male voice prioritize karna
-    const maleVoice = voices.find(v => 
-      (v.lang.includes('hi') || v.name.includes('Hindi')) && 
-      (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('man') || v.name.toLowerCase().includes('deep'))
-    ) || voices.find(v => v.lang.includes('hi') || v.name.includes('Hindi'));
-
-    if (maleVoice) utterance.voice = maleVoice;
+    const hindiVoice = voices.find(v => (v.lang.includes('hi') || v.name.includes('Hindi')) && (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('man'))) 
+                       || voices.find(v => v.lang.includes('hi') || v.name.includes('Hindi'));
+    if (hindiVoice) utterance.voice = hindiVoice;
 
     utterance.onstart = () => {
       orb.className = 'center-orb speaking';
@@ -264,7 +265,7 @@
       orb.className = 'center-orb';
       isSpeaking = false;
       statusText.innerText = 'JARVIS SUN RAHA HAI...';
-      if (activeLoop) setTimeout(restartListening, 500);
+      if (activeLoop) setTimeout(restartListening, 400);
     };
 
     window.speechSynthesis.speak(utterance);
