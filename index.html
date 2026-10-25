@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>JARVIS HUD Core</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #02060d;
+      color: #00e5ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    /* Avengers Arc Core Design */
+    .core-container {
+      position: relative;
+      width: 270px;
+      height: 270px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .ring-outer {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 2px dashed rgba(0, 229, 255, 0.4);
+      border-radius: 50%;
+      animation: rotateRing 14s linear infinite;
+    }
+
+    .ring-inner {
+      position: absolute;
+      width: 75%;
+      height: 75%;
+      border: 2px solid rgba(0, 229, 255, 0.8);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: rotateRingRev 6s linear infinite;
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+    }
+
+    .center-orb {
+      width: 95px;
+      height: 95px;
+      background: radial-gradient(circle, #00e5ff 0%, #00485c 80%);
+      border-radius: 50%;
+      box-shadow: 0 0 35px #00e5ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: bold;
+      letter-spacing: 2px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .speaking {
+      animation: pulseCore 0.8s infinite alternate;
+    }
+
+    @keyframes rotateRing {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes rotateRingRev {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+
+    @keyframes pulseCore {
+      from { 
+        transform: scale(1); 
+        box-shadow: 0 0 30px #00e5ff; 
+      }
+      to { 
+        transform: scale(1.15); 
+        box-shadow: 0 0 60px #ff0055; 
+        background: radial-gradient(circle, #ff0055 0%, #4a0018 80%); 
+      }
+    }
+
+    /* Status Panel */
+    .status-panel {
+      margin-top: 40px;
+      text-align: center;
+      width: 85%;
+      max-width: 450px;
+    }
+
+    #statusText {
+      font-size: 14px;
+      letter-spacing: 3px;
+      opacity: 0.7;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    #transcript {
+      background: rgba(0, 229, 255, 0.05);
+      border: 1px solid rgba(0, 229, 255, 0.2);
+      border-radius: 8px;
+      padding: 15px;
+      min-height: 55px;
+      font-size: 15px;
+      line-height: 1.5;
+      text-shadow: 0 0 5px rgba(0, 229, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="core-container" onclick="toggleListening()">
+    <div class="ring-outer"></div>
+    <div class="ring-inner"></div>
+    <div class="center-orb" id="orb">JARVIS</div>
+  </div>
+
+  <div class="status-panel">
+    <div id="statusText">TAP CORE TO INITIALIZE</div>
+    <div id="transcript">All systems operational, Sir. Tap the core to speak.</div>
+  </div>
+
+<script>
+  const orb = document.getElementById('orb');
+  const statusText = document.getElementById('statusText');
+  const transcriptDiv = document.getElementById('transcript');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition;
+  let isListening = false;
+
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'hi-IN'; // Hindi aur English dono sunta hai
+
+    recognition.onstart = () => {
+      isListening = true;
+      statusText.innerText = 'LISTENING...';
+      orb.style.boxShadow = '0 0 50px #00ff66';
+    };
+
+    recognition.onresult = (event) => {
+      const userText = event.results[0][0].transcript;
+      transcriptDiv.innerText = `You: "${userText}"`;
+      processCommand(userText.toLowerCase());
+    };
+
+    recognition.onerror = () => {
+      statusText.innerText = 'ONLINE - IDLE';
+      orb.style.boxShadow = '0 0 35px #00e5ff';
+      isListening = false;
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      statusText.innerText = 'ONLINE - IDLE';
+      orb.style.boxShadow = '0 0 35px #00e5ff';
+    };
+  } else {
+    statusText.innerText = 'SPEECH RECOGNITION NOT SUPPORTED';
+  }
+
+  function toggleListening() {
+    if (!SpeechRecognition) {
+      alert('Aapke browser mein Speech Recognition support nahi hai.');
+      return;
+    }
+    if (!isListening) {
+      recognition.start();
+    } else {
+      recognition.stop();
+    }
+  }
+
+  function speak(text) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.pitch = 0.9;
+    utterance.rate = 1.0;
+
+    utterance.onstart = () => {
+      orb.classList.add('speaking');
+      statusText.innerText = 'TRANSMITTING VOICE...';
+    };
+
+    utterance.onend = () => {
+      orb.classList.remove('speaking');
+      statusText.innerText = 'ONLINE - IDLE';
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function processCommand(cmd) {
+    statusText.innerText = 'PROCESSING...';
+
+    if (cmd.includes('kaun ho') || cmd.includes('who are you')) {
+      const reply = "Main JARVIS hoon sir, aapka personal artificial intelligence system.";
+      transcriptDiv.innerText = reply;
+      speak(reply);
+    } else if (cmd.includes('time') || cmd.includes('samay') || cmd.includes('kitne baje')) {
+      const timeStr = new Date().toLocaleTimeString();
+      const reply = `Sir, abhi samay ${timeStr} ho raha hai.`;
+      transcriptDiv.innerText = reply;
+      speak(reply);
+    } else if (cmd.includes('kya hal hai') || cmd.includes('how are you')) {
+      const reply = "Main bilkul badhiya hoon sir. Aapke orders ke liye hamesha ready.";
+      transcriptDiv.innerText = reply;
+      speak(reply);
+    } else {
+      const reply = `Aapka command mila: ${cmd}. Main ise process kar raha hoon.`;
+      transcriptDiv.innerText = reply;
+      speak(reply);
+    }
+  }
+</script>
+
+</body>
+  </html>
+  
