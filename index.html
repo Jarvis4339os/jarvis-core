@@ -148,7 +148,8 @@
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.continuous = false;
-    recognition.lang = 'hi-IN'; // Hindi aur English dono sunta hai
+    // hi-IN se Hindi aur English dono inputs accurately capture hote hain
+    recognition.lang = 'hi-IN';
 
     recognition.onstart = () => {
       isListening = true;
@@ -158,8 +159,8 @@
 
     recognition.onresult = (event) => {
       const userText = event.results[0][0].transcript;
-      transcriptDiv.innerText = `You: "${userText}"`;
-      processCommand(userText.toLowerCase());
+      transcriptDiv.innerText = `User: "${userText}"`;
+      processSmartCommand(userText.toLowerCase());
     };
 
     recognition.onerror = () => {
@@ -189,13 +190,25 @@
     }
   }
 
-  function speak(text) {
+  // Voice Response Engine (Language aware)
+  function speak(text, lang = 'hi-IN') {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.pitch = 0.9;
+    utterance.lang = lang;
+    utterance.pitch = 0.95;
     utterance.rate = 1.0;
+
+    // Available system voices select karna
+    const voices = window.speechSynthesis.getVoices();
+    if (lang === 'hi-IN') {
+      const hiVoice = voices.find(v => v.lang.includes('hi') || v.name.includes('Hindi'));
+      if (hiVoice) utterance.voice = hiVoice;
+    } else {
+      const enVoice = voices.find(v => v.lang.includes('en-GB') || v.lang.includes('en-US'));
+      if (enVoice) utterance.voice = enVoice;
+    }
 
     utterance.onstart = () => {
       orb.classList.add('speaking');
@@ -210,30 +223,61 @@
     window.speechSynthesis.speak(utterance);
   }
 
-  function processCommand(cmd) {
+  // Auto Language Detection & Command Handling
+  function processSmartCommand(cmd) {
     statusText.innerText = 'PROCESSING...';
 
-    if (cmd.includes('kaun ho') || cmd.includes('who are you')) {
-      const reply = "Main JARVIS hoon sir, aapka personal artificial intelligence system.";
-      transcriptDiv.innerText = reply;
-      speak(reply);
-    } else if (cmd.includes('time') || cmd.includes('samay') || cmd.includes('kitne baje')) {
-      const timeStr = new Date().toLocaleTimeString();
-      const reply = `Sir, abhi samay ${timeStr} ho raha hai.`;
-      transcriptDiv.innerText = reply;
-      speak(reply);
-    } else if (cmd.includes('kya hal hai') || cmd.includes('how are you')) {
-      const reply = "Main bilkul badhiya hoon sir. Aapke orders ke liye hamesha ready.";
-      transcriptDiv.innerText = reply;
-      speak(reply);
+    // Hindi/Hinglish Words Check
+    const hindiIndicators = [
+      'kaun', 'kya', 'kaise', 'namaste', 'batao', 'samay', 
+      'baje', 'kaha', 'tum', 'karo', 'hal', 'haal', 'kuch', 'hai', 'ho'
+    ];
+    const isHindi = hindiIndicators.some(word => cmd.includes(word));
+
+    if (isHindi) {
+      // Hindi responses
+      if (cmd.includes('kaun ho') || cmd.includes('naam')) {
+        const reply = "Main JARVIS hoon sir, aapka personal AI system.";
+        transcriptDiv.innerText = reply;
+        speak(reply, 'hi-IN');
+      } else if (cmd.includes('time') || cmd.includes('samay') || cmd.includes('baje')) {
+        const timeStr = new Date().toLocaleTimeString();
+        const reply = `Sir, abhi samay ${timeStr} ho raha hai.`;
+        transcriptDiv.innerText = reply;
+        speak(reply, 'hi-IN');
+      } else if (cmd.includes('hal') || cmd.includes('haal') || cmd.includes('kaise')) {
+        const reply = "Main bilkul theek hoon sir. Bataiye aapke liye kya karoon?";
+        transcriptDiv.innerText = reply;
+        speak(reply, 'hi-IN');
+      } else {
+        const reply = `Sir, maine aapka aadesh sun liya: "${cmd}".`;
+        transcriptDiv.innerText = reply;
+        speak(reply, 'hi-IN');
+      }
     } else {
-      const reply = `Aapka command mila: ${cmd}. Main ise process kar raha hoon.`;
-      transcriptDiv.innerText = reply;
-      speak(reply);
+      // English responses
+      if (cmd.includes('who are you') || cmd.includes('name')) {
+        const reply = "I am JARVIS, sir. Your personal artificial intelligence.";
+        transcriptDiv.innerText = reply;
+        speak(reply, 'en-US');
+      } else if (cmd.includes('time')) {
+        const timeStr = new Date().toLocaleTimeString();
+        const reply = `The current time is ${timeStr}, sir.`;
+        transcriptDiv.innerText = reply;
+        speak(reply, 'en-US');
+      } else if (cmd.includes('how are you')) {
+        const reply = "All systems operational and functioning at maximum capacity, sir.";
+        transcriptDiv.innerText = reply;
+        speak(reply, 'en-US');
+      } else {
+        const reply = `Command received: "${cmd}". Processing request.`;
+        transcriptDiv.innerText = reply;
+        speak(reply, 'en-US');
+      }
     }
   }
 </script>
 
 </body>
   </html>
-  
+
