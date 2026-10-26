@@ -85,40 +85,62 @@ const getAliases = () => { try { return JSON.parse(localStorage.getItem(ALIAS_KE
 const setAliases = (o) => { try { localStorage.setItem(ALIAS_KEY, JSON.stringify(o)); } catch (e) {} };
 
 const APPS = [
-  { label: 'YouTube', key: ['youtube', 'you tube', '\u092F\u0942\u091F\u094D\u092F\u0942\u092C', 'yt'], urls: ['vnd.youtube://', 'https://www.youtube.com'] },
-  { label: 'WhatsApp', key: ['whatsapp', 'whats app', '\u0935\u094D\u0939\u093E\u091F\u094D\u0938\u090F\u092A', '\u0935\u093E\u091F\u094D\u0938\u090F\u092A', '\u0935\u094D\u0939\u093E\u091F\u094D\u0938\u0910\u092A'], urls: ['whatsapp://send'] },
-  { label: 'Instagram', key: ['instagram', 'insta', '\u0907\u0902\u0938\u094D\u091F\u093E\u0917\u094D\u0930\u093E\u092E', '\u0907\u0928\u094D\u0938\u094D\u091F\u093E\u0917\u094D\u0930\u093E\u092E'], urls: ['instagram://app', 'https://www.instagram.com'] },
-  { label: 'Facebook', key: ['facebook', 'fb', '\u092B\u0947\u0938\u092C\u0941\u0915'], urls: ['fb://facewebmodal', 'https://www.facebook.com'] },
-  { label: 'Telegram', key: ['telegram', '\u091F\u0947\u0932\u0940\u0917\u094D\u0930\u093E\u092E'], urls: ['tg://', 'https://telegram.org'] },
-  { label: 'Snapchat', key: ['snapchat', '\u0938\u094D\u0928\u0948\u092A\u091A\u0948\u091F'], urls: ['snapchat://', 'https://www.snapchat.com'] },
-  { label: 'Spotify', key: ['spotify', '\u0938\u094D\u092A\u0949\u091F\u093F\u092B\u093E\u0908'], urls: ['spotify://'] },
-  { label: 'Gmail', key: ['gmail', '\u091C\u0940\u092E\u0947\u0932'], urls: ['googlegmail://'] },
-  { label: 'Google', key: ['google', '\u0917\u0942\u0917\u0932'], urls: ['https://www.google.com'] },
-  { label: 'Chrome', key: ['chrome', '\u0915\u094D\u0930\u094B\u092E', 'browser', '\u092C\u094D\u0930\u093E\u0909\u091C\u093C\u0930'], urls: ['https://www.google.com'] },
-  { label: 'Google Maps', key: ['maps', 'map', '\u0928\u0915\u094D\u0936\u093E', '\u092E\u0948\u092A\u094D\u0938'], urls: ['geo:0,0?q='] },
-  { label: 'Play Store', key: ['play store', 'playstore', '\u092A\u094D\u0932\u0947 \u0938\u094D\u091F\u094B\u0930'], urls: ['market://search?q='] },
-  { label: 'PhonePe', key: ['phonepe', '\u092B\u094B\u0928\u092A\u0947'], urls: ['phonepe://'] },
-  { label: 'Google Pay', key: ['google pay', 'gpay', '\u091C\u0940\u092A\u0947'], urls: ['tez://'] },
-  { label: 'Paytm', key: ['paytm', '\u092A\u0947\u091F\u0940\u090F\u092E'], urls: ['paytmmp://'] },
-  { label: 'Swiggy', key: ['swiggy', '\u0938\u094D\u0935\u093F\u0917\u0940'], urls: ['swiggy://'] },
-  { label: 'Zomato', key: ['zomato', '\u091C\u093C\u094B\u092E\u0948\u091F\u094B', '\u091C\u094B\u092E\u0948\u091F\u094B'], urls: ['zomato://'] },
-  { label: 'Uber', key: ['uber', '\u0909\u092C\u0930'], urls: ['uber://'] },
-  { label: 'Netflix', key: ['netflix', '\u0928\u0947\u091F\u092B\u094D\u0932\u093F\u0915\u094D\u0938'], urls: ['nflx://'] },
-  { label: 'LinkedIn', key: ['linkedin', '\u0932\u093F\u0902\u0915\u094D\u0921\u0907\u0928'], urls: ['linkedin://', 'https://www.linkedin.com'] }
+  { label: 'YouTube', key: ['youtube', 'you tube', '\u092F\u0942\u091F\u094D\u092F\u0942\u092C', 'yt'], urls: ['vnd.youtube://', 'com.google.android.youtube', 'https://www.youtube.com'] },
+  { label: 'WhatsApp', key: ['whatsapp', 'whats app', '\u0935\u094D\u0939\u093E\u091F\u094D\u0938\u090F\u092A', '\u0935\u093E\u091F\u094D\u0938\u090F\u092A', '\u0935\u094D\u0939\u093E\u091F\u094D\u0938\u0910\u092A'], urls: ['whatsapp://send', 'com.whatsapp'] },
+  { label: 'Instagram', key: ['instagram', 'insta', '\u0907\u0902\u0938\u094D\u091F\u093E\u0917\u094D\u0930\u093E\u092E', '\u0907\u0928\u094D\u0938\u094D\u091F\u093E\u0917\u094D\u0930\u093E\u092E'], urls: ['instagram://app', 'com.instagram.android', 'https://www.instagram.com'] },
+  { label: 'Facebook', key: ['facebook', 'fb', '\u092B\u0947\u0938\u092C\u0941\u0915'], urls: ['fb://facewebmodal', 'com.facebook.katana', 'https://www.facebook.com'] },
+  { label: 'Telegram', key: ['telegram', '\u091F\u0947\u0932\u0940\u0917\u094D\u0930\u093E\u092E'], urls: ['tg://', 'org.telegram.messenger', 'https://telegram.org'] },
+  { label: 'Snapchat', key: ['snapchat', '\u0938\u094D\u0928\u0948\u092A\u091A\u0948\u091F'], urls: ['snapchat://', 'com.snapchat.android', 'https://www.snapchat.com'] },
+  { label: 'Spotify', key: ['spotify', '\u0938\u094D\u092A\u0949\u091F\u093F\u092B\u093E\u0908'], urls: ['spotify://', 'com.spotify.music'] },
+  { label: 'Gmail', key: ['gmail', '\u091C\u0940\u092E\u0947\u0932'], urls: ['googlegmail://', 'com.google.android.gm'] },
+  { label: 'Google', key: ['google', '\u0917\u0942\u0917\u0932'], urls: ['com.google.android.googlequicksearchbox', 'https://www.google.com'] },
+  { label: 'Chrome', key: ['chrome', '\u0915\u094D\u0930\u094B\u092E', 'browser', '\u092C\u094D\u0930\u093E\u0909\u091C\u093C\u0930'], urls: ['com.android.chrome', 'https://www.google.com'] },
+  { label: 'Google Maps', key: ['maps', 'map', '\u0928\u0915\u094D\u0936\u093E', '\u092E\u0948\u092A\u094D\u0938'], urls: ['geo:0,0?q=', 'com.google.android.apps.maps'] },
+  { label: 'Play Store', key: ['play store', 'playstore', '\u092A\u094D\u0932\u0947 \u0938\u094D\u091F\u094B\u0930'], urls: ['market://search?q=', 'com.android.vending'] },
+  { label: 'PhonePe', key: ['phonepe', '\u092B\u094B\u0928\u092A\u0947'], urls: ['phonepe://', 'com.phonepe.app'] },
+  { label: 'Google Pay', key: ['google pay', 'gpay', '\u091C\u0940\u092A\u0947'], urls: ['tez://', 'com.google.android.apps.nbu.paisa.user'] },
+  { label: 'Paytm', key: ['paytm', '\u092A\u0947\u091F\u0940\u090F\u092E'], urls: ['paytmmp://', 'net.one97.paytm'] },
+  { label: 'Swiggy', key: ['swiggy', '\u0938\u094D\u0935\u093F\u0917\u0940'], urls: ['swiggy://', 'in.swiggy.android'] },
+  { label: 'Zomato', key: ['zomato', '\u091C\u093C\u094B\u092E\u0948\u091F\u094B', '\u091C\u094B\u092E\u0948\u091F\u094B'], urls: ['zomato://', 'com.application.zomato'] },
+  { label: 'Uber', key: ['uber', '\u0909\u092C\u0930'], urls: ['uber://', 'com.ubercab'] },
+  { label: 'Netflix', key: ['netflix', '\u0928\u0947\u091F\u092B\u094D\u0932\u093F\u0915\u094D\u0938'], urls: ['nflx://', 'com.netflix.mediaclient'] },
+  { label: 'LinkedIn', key: ['linkedin', '\u0932\u093F\u0902\u0915\u094D\u0921\u0907\u0928'], urls: ['linkedin://', 'com.linkedin.android', 'https://www.linkedin.com'] },
+  { label: 'Amazon', key: ['amazon', 'amazon shopping'], urls: ['com.amazon.mShop.android.shopping'] },
+  { label: 'Flipkart', key: ['flipkart', 'flip kart'], urls: ['com.flipkart.android'] },
+  { label: 'Hotstar', key: ['hotstar', 'disney'], urls: ['in.startv.hotstar'] },
+  { label: 'YouTube Music', key: ['youtube music', 'yt music', 'youtube music app'], urls: ['com.google.android.apps.youtube.music'] },
+  { label: 'Google Photos', key: ['photos', 'photo', 'gallery'], urls: ['com.google.android.apps.photos'] },
+  { label: 'Truecaller', key: ['truecaller', 'true caller'], urls: ['com.truecaller'] },
+  { label: 'WhatsApp Business', key: ['whatsapp business', 'wa business'], urls: ['com.whatsapp.w4b'] },
+  { label: 'Notes', key: ['notes', 'note', 'keep'], urls: ['com.google.android.keep'] },
+  { label: 'Drive', key: ['drive', 'google drive'], urls: ['com.google.android.apps.docs'] },
+  { label: 'Calculator', key: ['calculator', 'calc'], urls: ['com.google.android.calculator'] },
+  { label: 'JioCinema', key: ['jiocinema', 'jio cinema'], urls: ['com.jio.media.jiobeats'] }
 ];
 
-async function openFirst(urls) {
-  for (const url of urls) {
-    try { await AppLauncher.openUrl({ url }); return true; } catch (e) {}
+async function openFirst(app) {
+  for (const url of (app.urls || [])) {
+    try {
+      const r = await AppLauncher.openUrl({ url });
+      // openUrl reject nahi karta, completed:false bhejta hai - isliye check zaroori hai
+      if (r && r.completed !== false) return true;
+    } catch (e) {}
   }
   return false;
 }
 
 async function loadContacts() {
   if (contactCache) return contactCache;
-  let st = (await Contacts.checkPermissions()).contacts;
-  if (st !== 'granted' && st !== 'limited') st = (await Contacts.requestPermissions()).contacts;
-  if (st !== 'granted' && st !== 'limited') throw new Error('CONTACT_DENIED');
+  let st = '';
+  try {
+    st = (await Contacts.checkPermissions()).contacts;
+    dbg('contacts check: ' + st);
+    if (st !== 'granted' && st !== 'limited') st = (await Contacts.requestPermissions()).contacts;
+  } catch (e) {
+    dbg('contacts err: ' + ((e && e.message) || e));
+  }
+  dbg('contacts permission: ' + st);
+  if (st !== 'granted' && st !== 'limited') throw new Error('CONTACT_' + st);
 
   const res = await Contacts.getContacts({ projection: { name: true, phones: true } });
   contactCache = (res.contacts || [])
@@ -149,6 +171,8 @@ async function dial(number) {
 }
 
 const TTS_ORDER = ['hi-IN', 'en-IN', 'en-US'];
+// 1.0 = normal/male jaisi, 1.4 = female jaisi awaaz
+const TTS_PITCH = 1.4;
 let ttsAvailable = [];
 let ttsLastError = '';
 
@@ -192,7 +216,7 @@ async function speakNative(text, lang) {
   const out = /^hi/i.test(lang) ? text : devaToLatin(text);
   // NOTE: voice index jaan bujh kar nahi bhejte - engine ka default voice sabse reliable hai
   await withTimeout(
-    TextToSpeech.speak({ text: out, lang: lang, rate: 1.0, pitch: 1.0, volume: 1.0 }),
+    TextToSpeech.speak({ text: out, lang: lang, rate: 1.0, pitch: TTS_PITCH, volume: 1.0 }),
     ttsTimeoutFor(out)
   );
 }
@@ -310,7 +334,7 @@ async function voiceTest() {
     const t0 = Date.now();
     try {
       await withTimeout(
-        TextToSpeech.speak({ text: 'Ek do teen. Jarvis bol raha hai.', lang: lang, rate: 1.0, pitch: 1.0, volume: 1.0 }),
+        TextToSpeech.speak({ text: 'Ek do teen. Jarvis bol raha hai.', lang: lang, rate: 1.0, pitch: TTS_PITCH, volume: 1.0 }),
         14000
       );
       dbg(lang + ': OK (' + (Date.now() - t0) + 'ms)');
@@ -380,7 +404,8 @@ async function handleCall(raw) {
   let list;
   try { list = await loadContacts(); }
   catch (e) {
-    await say('Sir, contacts ki permission nahi mili. Settings se Contacts allow karein.');
+    const cst = String((e && e.message) || '').replace('CONTACT_', '') || 'nahi';
+    await say('Sir, contacts permission ' + cst + ' hai. Settings, Apps, JARVIS, Permissions me Contacts allow karein.');
     return true;
   }
 
@@ -460,12 +485,12 @@ async function routeLocal(raw) {
   if (/(khol|kholo|open|chalao|chala do|launch|\u0916\u094B\u0932|\u0916\u094B\u0932\u094B|\u0913\u092A\u0928|\u091A\u093E\u0932\u0942)/.test(probe)) {
     for (const app of APPS) {
       if (app.key.some((k) => probe.includes(k))) {
-        const ok = await openFirst(app.urls);
-        await say(ok ? app.label + ' khol raha hoon sir.' : app.label + ' install nahi hai sir.');
+        const ok = await openFirst(app);
+        await say(ok ? app.label + ' khol raha hoon sir.' : app.label + ' install nahi khula, sir.');
         return true;
       }
     }
-    await say('Is app ka seedha shortcut nahi hai sir. Naam saaf bolo.');
+    await say('Ye app list me nahi hai sir. YouTube, WhatsApp, Instagram, Telegram, Facebook, Snapchat, Spotify, Gmail, Maps, Play Store, PhonePe, GPay, Paytm, Swiggy, Zomato, Uber, Netflix, LinkedIn, Amazon, Flipkart, Hotstar me se koi boliye.');
     return true;
   }
 
@@ -600,6 +625,15 @@ async function startAssistant() {
   }
   try { await startBackgroundService(); }
   catch (e) { errorBox.innerText = 'Background: ' + e.message; }
+
+  try {
+    let cp = await Contacts.checkPermissions();
+    dbg('contacts (shuru): ' + cp.contacts);
+    if (cp.contacts !== 'granted' && cp.contacts !== 'limited') {
+      cp = await Contacts.requestPermissions();
+      dbg('contacts (baad me): ' + cp.contacts);
+    }
+  } catch (e) { dbg('contacts ask: ' + ((e && e.message) || e)); }
 
   await initTts();
   await ttsProbe();
