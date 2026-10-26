@@ -1,4 +1,3 @@
-// src/main.js — CI ise bundle karke www/app.js banata hai
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { BackgroundMode } from '@anuradev/capacitor-background-mode';
@@ -28,19 +27,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const setOrb = (c) => { orb.className = c; };
 const setStatus = (t) => { statusText.innerText = t; };
 
-/* ---------------- Devanagari → Latin ---------------- */
 const DEV = {
-  'क':'k','ख':'kh','ग':'g','घ':'gh','ङ':'n','च':'ch','छ':'chh','ज':'j','झ':'jh','ञ':'n',
-  'ट':'t','ठ':'th','ड':'d','ढ':'dh','ण':'n','त':'t','थ':'th','द':'d','ध':'dh','न':'n',
-  'प':'p','फ':'ph','ब':'b','भ':'bh','म':'m','य':'y','र':'r','ल':'l','व':'v','श':'sh',
-  'ष':'sh','स':'s','ह':'h','ळ':'l','क़':'q','ख़':'kh','ग़':'g','ज़':'z','ड़':'r','ढ़':'rh','फ़':'f',
-  'अ':'a','आ':'aa','इ':'i','ई':'ee','उ':'u','ऊ':'oo','ऋ':'ri','ए':'e','ऐ':'ai','ओ':'o','औ':'au',
-  'ा':'a','ि':'i','ी':'ee','ु':'u','ू':'oo','ृ':'ri','े':'e','ै':'ai','ो':'o','ौ':'au','ॉ':'o','ॅ':'e',
-  'ं':'n','ँ':'n','ः':'h','्':'','़':'','।':' ',
-  '०':'0','१':'1','२':'2','३':'3','४':'4','५':'5','६':'6','७':'7','८':'8','९':'9'
+  'à¤•':'k','à¤–':'kh','à¤—':'g','à¤˜':'gh','à¤™':'n','à¤š':'ch','à¤›':'chh','à¤œ':'j','à¤':'jh','à¤ž':'n',
+  'à¤Ÿ':'t','à¤ ':'th','à¤¡':'d','à¤¢':'dh','à¤£':'n','à¤¤':'t','à¤¥':'th','à¤¦':'d','à¤§':'dh','à¤¨':'n',
+  'à¤ª':'p','à¤«':'ph','à¤¬':'b','à¤­':'bh','à¤®':'m','à¤¯':'y','à¤°':'r','à¤²':'l','à¤µ':'v','à¤¶':'sh',
+  'à¤·':'sh','à¤¸':'s','à¤¹':'h','à¤³':'l','à¤•à¤¼':'q','à¤–à¤¼':'kh','à¤—à¤¼':'g','à¤œà¤¼':'z','à¤¡à¤¼':'r','à¤¢à¤¼':'rh','à¤«à¤¼':'f',
+  'à¤…':'a','à¤†':'aa','à¤‡':'i','à¤ˆ':'ee','à¤‰':'u','à¤Š':'oo','à¤‹':'ri','à¤':'e','à¤':'ai','à¤“':'o','à¤”':'au',
+  'à¤¾':'a','à¤¿':'i','à¥€':'ee','à¥':'u','à¥‚':'oo','à¥ƒ':'ri','à¥‡':'e','à¥ˆ':'ai','à¥‹':'o','à¥Œ':'au','à¥‰':'o','à¥…':'e',
+  'à¤‚':'n','à¤':'n','à¤ƒ':'h','à¥':'','à¤¼':'','à¥¤':' ',
+  'à¥¦':'0','à¥§':'1','à¥¨':'2','à¥©':'3','à¥ª':'4','à¥«':'5','à¥¬':'6','à¥­':'7','à¥®':'8','à¥¯':'9'
 };
-const CONS = new Set('क ख ग घ ङ च छ ज झ ञ ट ठ ड ढ ण त थ द ध न प फ ब भ म य र ल व श ष स ह क़ ख़ ग़ ज़ ड़ ढ़ फ़'.split(' '));
-const MATRA = new Set('ा ि ी ु ू ृ े ै ो ौ ॉ ॅ ं ँ ः ्'.split(' '));
+const CONS = new Set('à¤• à¤– à¤— à¤˜ à¤™ à¤š à¤› à¤œ à¤ à¤ž à¤Ÿ à¤  à¤¡ à¤¢ à¤£ à¤¤ à¤¥ à¤¦ à¤§ à¤¨ à¤ª à¤« à¤¬ à¤­ à¤® à¤¯ à¤° à¤² à¤µ à¤¶ à¤· à¤¸ à¤¹ à¤•à¤¼ à¤–à¤¼ à¤—à¤¼ à¤œà¤¼ à¤¡à¤¼ à¤¢à¤¼ à¤«à¤¼'.split(' '));
+const MATRA = new Set('à¤¾ à¤¿ à¥€ à¥ à¥‚ à¥ƒ à¥‡ à¥ˆ à¥‹ à¥Œ à¥‰ à¥… à¤‚ à¤ à¤ƒ à¥'.split(' '));
 
 function devaToLatin(input) {
   const ch = Array.from(String(input || ''));
@@ -51,19 +49,18 @@ function devaToLatin(input) {
     const m = DEV[c];
     if (m === undefined) { out += c; continue; }
     out += m;
-    if (CONS.has(c) && next !== '्' && !(next && MATRA.has(next))) out += 'a';
+    if (CONS.has(c) && next !== 'à¥' && !(next && MATRA.has(next))) out += 'a';
   }
   return out;
 }
 
 const norm = (s) => devaToLatin(s).toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/g, '');
 
-/* ---------------- digit words ---------------- */
 const DIGIT_WORDS = {
   zero:'0', oh:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6', seven:'7', eight:'8', nine:'9',
-  'double':'d', 'triple':'t', 'डबल':'d',
-  'शून्य':'0','ज़ीरो':'0','जीरो':'0','एक':'1','दो':'2','तीन':'3','चार':'4','पांच':'5','पाँच':'5',
-  'छह':'6','छे':'6','सात':'7','आठ':'8','नौ':'9'
+  'double':'d', 'triple':'t', 'à¤¡à¤¬à¤²':'d',
+  'à¤¶à¥‚à¤¨à¥à¤¯':'0','à¤œà¤¼à¥€à¤°à¥‹':'0','à¤œà¥€à¤°à¥‹':'0','à¤à¤•':'1','à¤¦à¥‹':'2','à¤¤à¥€à¤¨':'3','à¤šà¤¾à¤°':'4','à¤ªà¤¾à¤‚à¤š':'5','à¤ªà¤¾à¤à¤š':'5',
+  'à¤›à¤¹':'6','à¤›à¥‡':'6','à¤¸à¤¾à¤¤':'7','à¤†à¤ ':'8','à¤¨à¥Œ':'9'
 };
 
 function extractNumber(raw) {
@@ -81,33 +78,31 @@ function extractNumber(raw) {
   return out.length >= 6 ? out : '';
 }
 
-/* ---------------- alias memory ---------------- */
 const ALIAS_KEY = 'jarvis_call_aliases';
 const getAliases = () => { try { return JSON.parse(localStorage.getItem(ALIAS_KEY) || '{}') || {}; } catch (e) { return {}; } };
 const setAliases = (o) => { try { localStorage.setItem(ALIAS_KEY, JSON.stringify(o)); } catch (e) {} };
 
-/* ---------------- app list ---------------- */
 const APPS = [
-  { label: 'YouTube', key: ['youtube', 'you tube', 'यूट्यूब', 'yt'], urls: ['vnd.youtube://', 'https://www.youtube.com'] },
-  { label: 'WhatsApp', key: ['whatsapp', 'whats app', 'व्हाट्सएप', 'वाट्सएप', 'व्हाट्सऐप'], urls: ['whatsapp://send'] },
-  { label: 'Instagram', key: ['instagram', 'insta', 'इंस्टाग्राम', 'इन्स्टाग्राम'], urls: ['instagram://app', 'https://www.instagram.com'] },
-  { label: 'Facebook', key: ['facebook', 'fb', 'फेसबुक'], urls: ['fb://facewebmodal', 'https://www.facebook.com'] },
-  { label: 'Telegram', key: ['telegram', 'टेलीग्राम'], urls: ['tg://', 'https://telegram.org'] },
-  { label: 'Snapchat', key: ['snapchat', 'स्नैपचैट'], urls: ['snapchat://', 'https://www.snapchat.com'] },
-  { label: 'Spotify', key: ['spotify', 'स्पॉटिफाई'], urls: ['spotify://'] },
-  { label: 'Gmail', key: ['gmail', 'जीमेल'], urls: ['googlegmail://'] },
-  { label: 'Google', key: ['google', 'गूगल'], urls: ['https://www.google.com'] },
-  { label: 'Chrome', key: ['chrome', 'क्रोम', 'browser', 'ब्राउज़र'], urls: ['https://www.google.com'] },
-  { label: 'Google Maps', key: ['maps', 'map', 'नक्शा', 'मैप्स'], urls: ['geo:0,0?q='] },
-  { label: 'Play Store', key: ['play store', 'playstore', 'प्ले स्टोर'], urls: ['market://search?q='] },
-  { label: 'PhonePe', key: ['phonepe', 'फोनपे'], urls: ['phonepe://'] },
-  { label: 'Google Pay', key: ['google pay', 'gpay', 'जीपे'], urls: ['tez://'] },
-  { label: 'Paytm', key: ['paytm', 'पेटीएम'], urls: ['paytmmp://'] },
-  { label: 'Swiggy', key: ['swiggy', 'स्विगी'], urls: ['swiggy://'] },
-  { label: 'Zomato', key: ['zomato', 'ज़ोमैटो', 'जोमैटो'], urls: ['zomato://'] },
-  { label: 'Uber', key: ['uber', 'उबर'], urls: ['uber://'] },
-  { label: 'Netflix', key: ['netflix', 'नेटफ्लिक्स'], urls: ['nflx://'] },
-  { label: 'LinkedIn', key: ['linkedin', 'लिंक्डइन'], urls: ['linkedin://', 'https://www.linkedin.com'] }
+  { label: 'YouTube', key: ['youtube', 'you tube', 'à¤¯à¥‚à¤Ÿà¥à¤¯à¥‚à¤¬', 'yt'], urls: ['vnd.youtube://', 'https://www.youtube.com'] },
+  { label: 'WhatsApp', key: ['whatsapp', 'whats app', 'à¤µà¥à¤¹à¤¾à¤Ÿà¥à¤¸à¤à¤ª', 'à¤µà¤¾à¤Ÿà¥à¤¸à¤à¤ª', 'à¤µà¥à¤¹à¤¾à¤Ÿà¥à¤¸à¤à¤ª'], urls: ['whatsapp://send'] },
+  { label: 'Instagram', key: ['instagram', 'insta', 'à¤‡à¤‚à¤¸à¥à¤Ÿà¤¾à¤—à¥à¤°à¤¾à¤®', 'à¤‡à¤¨à¥à¤¸à¥à¤Ÿà¤¾à¤—à¥à¤°à¤¾à¤®'], urls: ['instagram://app', 'https://www.instagram.com'] },
+  { label: 'Facebook', key: ['facebook', 'fb', 'à¤«à¥‡à¤¸à¤¬à¥à¤•'], urls: ['fb://facewebmodal', 'https://www.facebook.com'] },
+  { label: 'Telegram', key: ['telegram', 'à¤Ÿà¥‡à¤²à¥€à¤—à¥à¤°à¤¾à¤®'], urls: ['tg://', 'https://telegram.org'] },
+  { label: 'Snapchat', key: ['snapchat', 'à¤¸à¥à¤¨à¥ˆà¤ªà¤šà¥ˆà¤Ÿ'], urls: ['snapchat://', 'https://www.snapchat.com'] },
+  { label: 'Spotify', key: ['spotify', 'à¤¸à¥à¤ªà¥‰à¤Ÿà¤¿à¤«à¤¾à¤ˆ'], urls: ['spotify://'] },
+  { label: 'Gmail', key: ['gmail', 'à¤œà¥€à¤®à¥‡à¤²'], urls: ['googlegmail://'] },
+  { label: 'Google', key: ['google', 'à¤—à¥‚à¤—à¤²'], urls: ['https://www.google.com'] },
+  { label: 'Chrome', key: ['chrome', 'à¤•à¥à¤°à¥‹à¤®', 'browser', 'à¤¬à¥à¤°à¤¾à¤‰à¤œà¤¼à¤°'], urls: ['https://www.google.com'] },
+  { label: 'Google Maps', key: ['maps', 'map', 'à¤¨à¤•à¥à¤¶à¤¾', 'à¤®à¥ˆà¤ªà¥à¤¸'], urls: ['geo:0,0?q='] },
+  { label: 'Play Store', key: ['play store', 'playstore', 'à¤ªà¥à¤²à¥‡ à¤¸à¥à¤Ÿà¥‹à¤°'], urls: ['market://search?q='] },
+  { label: 'PhonePe', key: ['phonepe', 'à¤«à¥‹à¤¨à¤ªà¥‡'], urls: ['phonepe://'] },
+  { label: 'Google Pay', key: ['google pay', 'gpay', 'à¤œà¥€à¤ªà¥‡'], urls: ['tez://'] },
+  { label: 'Paytm', key: ['paytm', 'à¤ªà¥‡à¤Ÿà¥€à¤à¤®'], urls: ['paytmmp://'] },
+  { label: 'Swiggy', key: ['swiggy', 'à¤¸à¥à¤µà¤¿à¤—à¥€'], urls: ['swiggy://'] },
+  { label: 'Zomato', key: ['zomato', 'à¤œà¤¼à¥‹à¤®à¥ˆà¤Ÿà¥‹', 'à¤œà¥‹à¤®à¥ˆà¤Ÿà¥‹'], urls: ['zomato://'] },
+  { label: 'Uber', key: ['uber', 'à¤‰à¤¬à¤°'], urls: ['uber://'] },
+  { label: 'Netflix', key: ['netflix', 'à¤¨à¥‡à¤Ÿà¤«à¥à¤²à¤¿à¤•à¥à¤¸'], urls: ['nflx://'] },
+  { label: 'LinkedIn', key: ['linkedin', 'à¤²à¤¿à¤‚à¤•à¥à¤¡à¤‡à¤¨'], urls: ['linkedin://', 'https://www.linkedin.com'] }
 ];
 
 async function openFirst(urls) {
@@ -117,7 +112,6 @@ async function openFirst(urls) {
   return false;
 }
 
-/* ---------------- contacts ---------------- */
 async function loadContacts() {
   if (contactCache) return contactCache;
   let st = (await Contacts.checkPermissions()).contacts;
@@ -152,55 +146,73 @@ async function dial(number) {
   catch (e) { errorBox.innerText = 'Call app nahi khula: ' + e.message; }
 }
 
-/* ---------------- TTS setup (Hindi na ho to English fallback) ---------------- */
+const TTS_ORDER = ['hi-IN', 'en-IN', 'en-US'];
+let ttsAvailable = [];
+let ttsLastError = '';
+
+async function detectTtsLangs() {
+  const ok = [];
+  for (const l of TTS_ORDER) {
+    try {
+      const r = await TextToSpeech.isLanguageSupported({ lang: l });
+      if (r && r.supported) ok.push(l);
+    } catch (e) {}
+  }
+  if (!ok.length) {
+    try {
+      const res = await TextToSpeech.getSupportedLanguages();
+      const list = (res && res.languages) || [];
+      const has = (l) => list.some((x) => String(x).toLowerCase().replace('_', '-') === l.toLowerCase());
+      for (const l of TTS_ORDER) if (has(l)) ok.push(l);
+    } catch (e) {}
+  }
+  ttsAvailable = ok.length ? ok : ['en-US'];
+  return ttsAvailable;
+}
+
 async function initTts() {
   if (ttsReady) return;
   ttsReady = true;
   try {
-    const langs = await TextToSpeech.getSupportedLanguages();
-    const list = (langs && langs.languages) || [];
-    const hasHi = list.some((l) => String(l).toLowerCase().startsWith('hi'));
-    if (!hasHi) {
+    const list = await detectTtsLangs();
+    ttsLang = list[0];
+    if (!/^hi/i.test(list[0])) {
       try { await TextToSpeech.openInstall(); } catch (e) {}
     }
-  } catch (e) {}
-
-  try {
-    const res = await TextToSpeech.getSupportedVoices();
-    const voices = res && res.voices ? res.voices : [];
-    const find = (re) => voices.findIndex((v) => re.test(String((v && v.lang) || '')));
-    const idxHi = find(/^hi/i);
-    const idxEnIn = find(/^en[-_]in/i);
-    const idxEn = find(/^en/i);
-    if (idxHi >= 0) { ttsVoice = idxHi; ttsLang = 'hi-IN'; }
-    else if (idxEnIn >= 0) { ttsVoice = idxEnIn; ttsLang = 'en-IN'; }
-    else if (idxEn >= 0) { ttsVoice = idxEn; ttsLang = 'en-US'; }
-  } catch (e) {}
+  } catch (e) {
+    ttsLastError = (e && e.message) ? e.message : String(e);
+  }
 }
 
-function ttsOptions(text) {
-  const o = { text, lang: ttsLang, rate: 1.0, pitch: 0.7, volume: 1.0, category: 'ambient' };
-  if (typeof ttsVoice === 'number' && ttsVoice >= 0) o.voice = ttsVoice;
-  return o;
+function ttsTimeoutFor(text) {
+  return 5000 + text.length * 130;
+}
+
+async function speakNative(text, lang) {
+  const out = /^hi/i.test(lang) ? text : devaToLatin(text);
+  // NOTE: voice index jaan bujh kar nahi bhejte - engine ka default voice sabse reliable hai
+  await withTimeout(
+    TextToSpeech.speak({ text: out, lang: lang, rate: 1.0, pitch: 1.0, volume: 1.0 }),
+    ttsTimeoutFor(out)
+  );
 }
 
 function webSpeak(text, lang) {
   return new Promise((resolve) => {
     try {
-      if (!window.speechSynthesis) return resolve();
+      if (!window.speechSynthesis) { resolve(false); return; }
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = lang;
       u.rate = 1.0;
-      u.pitch = 0.7;
-      u.onend = () => resolve();
-      u.onerror = () => resolve();
+      u.pitch = 1.0;
+      u.onend = () => resolve(true);
+      u.onerror = () => resolve(false);
       speechSynthesis.speak(u);
-    } catch (e) { resolve(); }
+    } catch (e) { resolve(false); }
   });
 }
 
-/* ---------------- speech out ---------------- */
 async function say(rawText) {
   const text = String(rawText);
   transcriptDiv.innerText = 'JARVIS: ' + text;
@@ -211,41 +223,37 @@ async function say(rawText) {
   try { await TextToSpeech.stop(); } catch (e) {}
   await initTts();
 
-  const hi = /^hi/i.test(ttsLang);
-  const spoken = hi ? text : devaToLatin(text);
-  const t0 = Date.now();
-  let spoke = false;
-
-  try {
-    await TextToSpeech.speak(ttsOptions(spoken));
-    spoke = true;
-  } catch (e) {
-    errorBox.innerText = 'TTS: ' + (e && e.message ? e.message : e);
+  const candidates = [];
+  for (const l of [ttsLang, ...(ttsAvailable || []), ...TTS_ORDER]) {
+    if (l && candidates.indexOf(l) === -1) candidates.push(l);
   }
 
-  if (!spoke) {
-    // Hindi voice nahi hai -> English voice se Hinglish
-    ttsLang = 'en-US';
-    ttsVoice = null;
+  let spoke = false;
+  for (const lang of candidates) {
     try {
-      await TextToSpeech.speak(ttsOptions(devaToLatin(text)));
+      await speakNative(text, lang);
       spoke = true;
-    } catch (e2) {
-      errorBox.innerText = 'TTS: ' + (e2 && e2.message ? e2.message : e2);
+      ttsLang = lang;
+      break;
+    } catch (e) {
+      ttsLastError = (e && e.message) ? e.message : String(e);
+      try { await TextToSpeech.stop(); } catch (e2) {}
     }
   }
 
-  if (!spoke) await webSpeak(devaToLatin(text), 'en-IN');
+  if (!spoke) {
+    const web = await webSpeak(devaToLatin(text), 'en-IN');
+    if (!web) {
+      try { await TextToSpeech.openInstall(); } catch (e) {}
+      errorBox.innerText = 'TTS fail: ' + ttsLastError + ' | langs: ' + (ttsAvailable || []).join(', ');
+    }
+  }
 
-  const need = 350 + spoken.length * 85;
-  const spent = Date.now() - t0;
-  if (spent < need) await sleep(need - spent);
-
+  await sleep(250);
   isSpeaking = false;
   setOrb('center-orb');
 }
 
-/* ---------------- Gemini ---------------- */
 function nowContext() {
   const d = new Date();
   const date = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -263,7 +271,7 @@ async function askGemini(promptText) {
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history }),
+      body: JSON.stringify({ history: history }),
       signal: AbortSignal.timeout(25000)
     });
     const data = await res.json();
@@ -281,12 +289,11 @@ async function askGemini(promptText) {
   }
 }
 
-/* ---------------- call by name ---------------- */
 function extractCallName(raw) {
   let t = String(raw || '').toLowerCase();
-  t = t.replace(/(को|से|ko|se)?\s*(phone|call|dial|fon|फोन|कॉल|काल|मिलाओ|milao)\s*(करो|कर|कर दो|karo|kar do|kar|lagao|लगाओ|lagana|लगाना)?/g, ' ');
+  t = t.replace(/(à¤•à¥‹|à¤¸à¥‡|ko|se)?\s*(phone|call|dial|fon|à¤«à¥‹à¤¨|à¤•à¥‰à¤²|à¤•à¤¾à¤²|à¤®à¤¿à¤²à¤¾à¤“|milao)\s*(à¤•à¤°à¥‹|à¤•à¤°|à¤•à¤° à¤¦à¥‹|karo|kar do|kar|lagao|à¤²à¤—à¤¾à¤“|lagana|à¤²à¤—à¤¾à¤¨à¤¾)?/g, ' ');
   t = t.replace(/\b(please|sir|jarvis|zara|abhi|mere|mera|the)\b/g, ' ');
-  t = t.replace(/[?!,.।]/g, ' ');
+  t = t.replace(/[?!,.à¥¤]/g, ' ');
   return t.replace(/\s+/g, ' ').trim();
 }
 
@@ -328,19 +335,16 @@ async function handleCall(raw) {
   return true;
 }
 
-/* ---------------- local fast router (internet nahi lagta) ---------------- */
 async function routeLocal(raw) {
   const latin = devaToLatin(raw).toLowerCase();
   const probe = latin + ' ' + String(raw).toLowerCase();
 
-  /* stop */
-  if (/(band karo|band kar|so jao|stop jarvis|alvida|bye jarvis|बंद करो|सो जाओ)/.test(probe)) {
+  if (/(band karo|band kar|so jao|stop jarvis|alvida|bye jarvis|à¤¬à¤‚à¤¦ à¤•à¤°à¥‹|à¤¸à¥‹ à¤œà¤¾à¤“)/.test(probe)) {
     await say('Theek hai sir, standby par ja raha hoon.');
     await stopEverything();
     return true;
   }
 
-  /* pending call ka number */
   if (pendingCallName) {
     const num = extractNumber(raw);
     if (num) {
@@ -354,24 +358,21 @@ async function routeLocal(raw) {
     }
   }
 
-  /* date (Devanagari + nukta dono) */
-  if (/(date|tarikh|tareekh|tarik|din|डेट|तारीख़|तारीख|तारिख|दिन|आज)/.test(probe)) {
-    if (!/(time|samay|baje|टाइम|समय|बजे)/.test(probe)) {
+  if (/(date|tarikh|tareekh|tarik|din|à¤¡à¥‡à¤Ÿ|à¤¤à¤¾à¤°à¥€à¤–à¤¼|à¤¤à¤¾à¤°à¥€à¤–|à¤¤à¤¾à¤°à¤¿à¤–|à¤¦à¤¿à¤¨|à¤†à¤œ)/.test(probe)) {
+    if (!/(time|samay|baje|à¤Ÿà¤¾à¤‡à¤®|à¤¸à¤®à¤¯|à¤¬à¤œà¥‡)/.test(probe)) {
       const d = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       await say('Sir, aaj ' + d + ' hai.');
       return true;
     }
   }
 
-  /* time */
-  if (/(time|samay|baje|टाइम|समय|बजे)/.test(probe)) {
+  if (/(time|samay|baje|à¤Ÿà¤¾à¤‡à¤®|à¤¸à¤®à¤¯|à¤¬à¤œà¥‡)/.test(probe)) {
     const now = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
     await say('Sir, abhi ' + now + ' ho rahe hain.');
     return true;
   }
 
-  /* battery */
-  if (/(battery|बैटरी)/.test(probe)) {
+  if (/(battery|à¤¬à¥ˆà¤Ÿà¤°à¥€)/.test(probe)) {
     let pct = null;
     try {
       if (navigator.getBattery) {
@@ -383,14 +384,12 @@ async function routeLocal(raw) {
     return true;
   }
 
-  /* call */
-  if (/(call|phone|fon|dial|milao|मिलाओ|कॉल|फोन|काल)/.test(probe)) {
+  if (/(call|phone|fon|dial|milao|à¤®à¤¿à¤²à¤¾à¤“|à¤•à¥‰à¤²|à¤«à¥‹à¤¨|à¤•à¤¾à¤²)/.test(probe)) {
     const done = await handleCall(raw);
     if (done) return true;
   }
 
-  /* app kholna */
-  if (/(khol|kholo|open|chalao|chala do|launch|खोल|खोलो|ओपन|चालू)/.test(probe)) {
+  if (/(khol|kholo|open|chalao|chala do|launch|à¤–à¥‹à¤²|à¤–à¥‹à¤²à¥‹|à¤“à¤ªà¤¨|à¤šà¤¾à¤²à¥‚)/.test(probe)) {
     for (const app of APPS) {
       if (app.key.some((k) => probe.includes(k))) {
         const ok = await openFirst(app.urls);
@@ -406,7 +405,6 @@ async function routeLocal(raw) {
   return false;
 }
 
-/* ---------------- mic loop ---------------- */
 function withTimeout(p, ms) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('timeout')), ms);
@@ -464,7 +462,6 @@ async function loop() {
   }
 }
 
-/* ---------------- permissions + background ---------------- */
 async function ensurePermissions() {
   const res = await SpeechRecognition.requestPermissions();
   const st = (res && (res.speechRecognition || res.speechRecognitionPermission)) || '';
@@ -494,7 +491,6 @@ async function stopEverything() {
   isSpeaking = false;
   isThinking = false;
   try { await SpeechRecognition.stop(); } catch (e) {}
-  try { await SpeechRecognition.removeAllListeners(); } catch (e) {}
   try { await TextToSpeech.stop(); } catch (e) {}
   try { speechSynthesis.cancel(); } catch (e) {}
   try { await BackgroundMode.disable(); } catch (e) {}
