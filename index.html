@@ -41,7 +41,7 @@
 
   <div class="status-panel">
     <div id="statusText">TAP CORE TO START</div>
-    <div id="transcript">Jarvis standby par hai. Ek baar Arc Core par tap karein.</div>
+    <div id="transcript">Jarvis online hone ke liye taiyaar hai. Core par tap kijiye.</div>
     <div id="errorBox"></div>
   </div>
 
@@ -57,28 +57,12 @@
   let isSpeaking = false;
   let activeLoop = false;
   let recognition = null;
-  let voices = [];
-
-  function loadVoices() {
-    voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
-  }
-  if (window.speechSynthesis) {
-    loadVoices();
-    speechSynthesis.onvoiceschanged = loadVoices;
-  }
-
-  function pickVoice() {
-    return voices.find(v => (v.lang.toLowerCase().startsWith('hi') || v.lang === 'en-IN') && /male|man|deep/i.test(v.name))
-        || voices.find(v => v.lang.toLowerCase().startsWith('hi'))
-        || voices.find(v => v.lang === 'en-IN')
-        || null;
-  }
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  function initRecognition() {
+  function initMic() {
     if (!SpeechRecognition) {
-      errorBox.innerText = "Speech recognition is phone par supported nahi hai.";
+      errorBox.innerText = "Speech API not available.";
       return;
     }
     if (recognition) return;
@@ -89,10 +73,9 @@
     recognition.lang = 'hi-IN';
 
     recognition.onstart = () => {
-      if (!isSpeaking) {
-        statusText.innerText = 'JARVIS SUN RAHA HAI...';
-        orb.className = 'center-orb listening-mode';
-      }
+      isSpeaking = false;
+      statusText.innerText = 'JARVIS SUN RAHA HAI...';
+      orb.className = 'center-orb listening-mode';
     };
 
     recognition.onresult = (event) => {
@@ -106,75 +89,76 @@
 
     recognition.onerror = (e) => {
       if (e.error === 'not-allowed') {
-        errorBox.innerText = "Phone Settings se JARVIS App ki Microphone permission on karein.";
+        errorBox.innerText = "App permissions mein jaakar Microphone allow karein.";
+      }
+      if (activeLoop && !isSpeaking) {
+        setTimeout(startMicSafe, 800);
       }
     };
 
     recognition.onend = () => {
-      if (!isSpeaking && activeLoop) {
-        setTimeout(safeStartListening, 400);
+      if (activeLoop && !isSpeaking && !orb.className.includes('thinking')) {
+        setTimeout(startMicSafe, 300);
       }
     };
   }
 
-  function safeStartListening() {
-    if (!activeLoop || isSpeaking || !recognition) return;
+  function startMicSafe() {
+    if (!activeLoop || isSpeaking) return;
     try {
+      if (!recognition) initMic();
       recognition.start();
     } catch (e) {}
   }
 
-  function safeStopListening() {
+  function stopMicSafe() {
     if (!recognition) return;
-    try {
-      recognition.abort();
-    } catch (e) {}
+    try { recognition.abort(); } catch (e) {}
   }
 
   document.getElementById('core').onclick = () => {
     if (!activeLoop) {
-      startJarvis();
+      activeLoop = true;
+      errorBox.innerText = "";
+      initMic();
+      speak("Namaste sir. Jarvis taiyaar hai. Kahiye, main kya karoon?", () => {
+        startMicSafe();
+      });
     } else {
-      stopJarvis();
+      activeLoop = false;
+      isSpeaking = false;
+      stopMicSafe();
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      orb.className = 'center-orb';
+      statusText.innerText = 'STANDBY - TAP TO START';
     }
   };
 
-  function startJarvis() {
-    activeLoop = true;
-    errorBox.innerText = "";
-    initRecognition();
-    speak("Namaste sir. Jarvis online hai. Main aapki kya sahayata karoon?");
-  }
-
-  function stopJarvis() {
-    activeLoop = false;
-    isSpeaking = false;
-    safeStopListening();
-    if (window.speechSynthesis) speechSynthesis.cancel();
-    orb.className = 'center-orb';
-    statusText.innerText = 'STANDBY - TAP TO START';
-  }
-
   function handleCommand(text) {
     const t = text.toLowerCase();
-    if (/(band karo|so jao|stop jarvis|bye|alvida)/.test(t)) {
-      speak("Theek hai sir, standby par ja raha hoon.", () => stopJarvis());
+    if (/(band karo|so jao|stop jarvis|alvida)/.test(t)) {
+      activeLoop = false;
+      speak("Standby par ja raha hoon sir.", () => {
+        stopMicSafe();
+        orb.className = 'center-orb';
+        statusText.innerText = 'STANDBY - TAP TO START';
+      });
       return;
     }
-    if (/(time|samay|baje|टाइम|समय|बजे)/.test(t)) {
-      speak(`Sir, abhi ${new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })} ho rahe hain.`);
+    if (/(time|samay|baje|टाइम|समय)/.test(t)) {
+      speak(`Sir, abhi ${new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })} ho rahe hain.`, () => startMicSafe());
       return;
     }
-    if (/(date|tarikh|aaj kya din|तारीख)/.test(t)) {
-      speak(`Sir, aaj ${new Date().toLocaleDateString('hi-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} hai.`);
+    if (/(date|tarikh|din|तारीख)/.test(t)) {
+      speak(`Sir, aaj ${new Date().toLocaleDateString('hi-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} hai.`, () => startMicSafe());
       return;
     }
-    if (/(youtube|यूट्यूब)/.test(t) && /(khol|open|खोल)/.test(t)) {
+    if (/(youtube|यूट्यूब)/.test(t) && /(khol|open)/.test(t)) {
       speak("YouTube khol raha hoon sir.");
       window.location.href = "vnd.youtube://";
       return;
     }
-    if (/(google|गूगल)/.test(t) && /(khol|open|खोल)/.test(t)) {
+    if (/(google|गूगल)/.test(t) && /(khol|open)/.test(t)) {
       speak("Google khol raha hoon sir.");
       window.location.href = "googlechrome://";
       return;
@@ -200,55 +184,52 @@
       if (!res.ok || !data.reply) {
         history.pop();
         errorBox.innerText = "Worker Error: " + (data.error || res.status);
-        speak("Sir, connection mein issue aaya hai.");
+        speak("Sir, connection mein issue aaya hai.", () => startMicSafe());
         return;
       }
 
       history.push({ role: "model", parts: [{ text: data.reply }] });
-      speak(data.reply);
+      speak(data.reply, () => startMicSafe());
     } catch (err) {
       history.pop();
       errorBox.innerText = "Connection error: " + err.message;
-      speak("Sir, internet connect nahi ho pa raha.");
+      speak("Sir, internet se connect nahi ho pa raha.", () => startMicSafe());
     }
   }
 
-  function speak(text, after) {
+  function speak(text, onFinish) {
     transcriptDiv.innerText = `JARVIS: ${text}`;
-    if (!window.speechSynthesis) { if (after) after(); return; }
+    if (!window.speechSynthesis) {
+      if (onFinish) onFinish();
+      return;
+    }
 
-    safeStopListening();
+    stopMicSafe();
     speechSynthesis.cancel();
     isSpeaking = true;
 
     const u = new SpeechSynthesisUtterance(text);
-    const v = pickVoice();
-    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'hi-IN'; }
-    u.pitch = 0.65;
+    u.lang = 'hi-IN';
     u.rate = 1.0;
+    u.pitch = 0.7;
 
-    let finished = false;
-    const done = () => {
-      if (finished) return; 
-      finished = true;
-      clearTimeout(safety);
+    let executed = false;
+    const finishCallback = () => {
+      if (executed) return;
+      executed = true;
       isSpeaking = false;
       orb.className = 'center-orb';
-      if (after) { after(); return; }
-      if (activeLoop) {
-        statusText.innerText = 'JARVIS SUN RAHA HAI...';
-        setTimeout(safeStartListening, 300);
-      }
+      if (onFinish) onFinish();
     };
 
-    const safety = setTimeout(done, 3000 + text.length * 80);
-
-    u.onstart = () => { 
-      orb.className = 'center-orb speaking'; 
-      statusText.innerText = 'JARVIS BOL RAHA HAI...'; 
+    u.onstart = () => {
+      orb.className = 'center-orb speaking';
+      statusText.innerText = 'JARVIS BOL RAHA HAI...';
     };
-    u.onend = done;
-    u.onerror = done;
+    u.onend = finishCallback;
+    u.onerror = finishCallback;
+
+    setTimeout(finishCallback, 3000 + text.length * 80);
     speechSynthesis.speak(u);
   }
 </script>
