@@ -1,11 +1,13 @@
-// src/main.js  →  CI me esbuild ise bundle karke www/app.js banata hai
+// src/main.js — CI ise bundle karke www/app.js banata hai
+import { AppLauncher } from '@capacitor/app-launcher';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { BackgroundMode } from '@anuradev/capacitor-background-mode';
 
 const WORKER_URL = 'https://jarvis-api.sachinsainimbd4339.workers.dev';
 const LANG = 'hi-IN';
-const LISTEN_TIMEOUT = 12000; // Google recognizer itna sunta hai, phir restart
+const LISTEN_TIMEOUT = 12000;
+const MAX_HISTORY = 8; // chhoti history = tez jawab
 
 const orb = document.getElementById('orb');
 const statusText = document.getElementById('statusText');
@@ -24,6 +26,35 @@ const setOrb = (cls) => { orb.className = cls; };
 const setStatus = (t) => { statusText.innerText = t; };
 const showError = (t) => { errorBox.innerText = t; };
 
+/* ---------- apps jo voice se khulenge ---------- */
+const APPS = {
+  youtube:   { name: 'YouTube',    urls: ['vnd.youtube://', 'https://www.youtube.com'] },
+  whatsapp:  { name: 'WhatsApp',   urls: ['whatsapp://', 'https://wa.me/'] },
+  instagram: { name: 'Instagram',  urls: ['instagram://app', 'https://www.instagram.com'] },
+  facebook:  { name: 'Facebook',   urls: ['fb://', 'https://www.facebook.com'] },
+  telegram:  { name: 'Telegram',   urls: ['tg://', 'https://t.me'] },
+  chrome:    { name: 'Chrome',     urls: ['googlechrome://', 'https://www.google.com'] },
+  gmail:     { name: 'Gmail',      urls: ['googlegmail://', 'https://mail.google.com'] },
+  maps:      { name: 'Maps',       urls: ['geo:0,0?q=', 'https://maps.google.com'] },
+  playstore: { name: 'Play Store', urls: ['market://', 'https://play.google.com'] },
+  settings:  { name: 'Settings',   urls: ['android.settings.SETTINGS'] },
+  phone:     { name: 'Phone',      urls: ['tel:'] },
+};
+
+const APP_WORDS = {
+  youtube:   ['youtube', 'you tube', 'यूट्यूब'],
+  whatsapp:  ['whatsapp', 'whats app', 'watsapp', 'व्हाट्सएप', 'व्हाट्सऐप'],
+  instagram: ['instagram', 'insta', 'इंस्टाग्राम'],
+  facebook:  ['facebook', 'फेसबुक'],
+  telegram:  ['telegram', 'टेलीग्राम'],
+  chrome:    ['chrome', 'browser', 'क्रोम'],
+  gmail:     ['gmail', 'जीमेल'],
+  maps:      ['maps', 'google maps', 'नक्शा'],
+  playstore: ['play store', 'playstore'],
+  settings:  ['settings', 'सेटिंग'],
+  phone:     ['phone', 'dialer'],
+};
+
 /* ---------- permissions + background service ---------- */
 async function ensurePermissions() {
   const res = await SpeechRecognition.requestPermissions();
@@ -34,16 +65,15 @@ async function ensurePermissions() {
 }
 
 async function startBackgroundService() {
-  // Android 14+ rule: service foreground me hi start hota hai (isliye tap zaroori)
   await BackgroundMode.enable({
     title: 'JARVIS',
-    text: 'Assistant sun raha hai...',
+    text: 'Chalu hai',
     color: '#00485c',
     resume: true,
-    silent: false,
+    silent: true,              // beep/awaaz nahi, notification chup
     allowClose: false,
     allowMicrophoneInBackground: true,
-    disableWebViewOptimization: true,
+    disableWebViewOptimization: true,   // background me bhi JS chalta rahe
   });
 }
 
@@ -52,6 +82,38 @@ async function askBatteryExemption() {
     const s = await BackgroundMode.checkBatteryOptimizations();
     if (s.enabled) await BackgroundMode.requestDisableBatteryOptimizations();
   } catch (e) {}
+}
+
+/* ---------- app kholna (sabse tez) ---------- */
+async function openApp(key) {
+  const app = APPS[key];
+  let opened = false;
+
+  for (const url of app.urls) {
+    try {
+      await AppLauncher.openUrl({ url });
+      opened = true;
+      break;
+    } catch (e) {
+      // ye scheme kaam nahi kari, agla try karo
+    }
+  }
+
+  const line = opened
+    ? `${app.name} khol diya sir.`
+    : `${app.name} is phone me nahi mila sir.`;
+
+  transcriptDiv.innerText = `JARVIS: ${line}`;
+  isThinking = false;
+  setStatus('JARVIS BOL RAHA HAI...');
+
+  // app khul gaya, ab awaaz background me bajegi
+  try {
+    await TextToSpeech.speak({ text: line, lang: LANG, rate: 1.0, pitch: 0.7, volume: 1.0, queueStrategy: 0 });
+  } catch (e) {}
+
+  setOrb('center-orb');
+  if (activeLoop) startMicSafe();
 }
 
 /* ---------- mic loop ---------- */
@@ -76,7 +138,7 @@ async function startMicSafe() {
     if (r === '__timeout__') timedOut = true;
     else if (r && r.matches && r.matches[0]) text = r.matches[0].trim();
   } catch (e) {
-    // Google recognizer kabhi kabhi "no match / busy" deta hai - loop mat todo
+    // recognizer kabhi kabhi error deta hai - loop mat todo
   }
 
   if (timedOut) await SpeechRecognition.stop().catch(() => {});
@@ -102,7 +164,6 @@ async function speak(text, onFinish) {
   setOrb('center-orb speaking');
   setStatus('JARVIS BOL RAHA HAI...');
 
-  // mic echo na sun le, isliye kam se kam itna wait karo
   const minWait = 800 + text.length * 75;
   try {
     await Promise.all([
@@ -137,11 +198,23 @@ function handleCommand(text) {
   isThinking = true;
   const t = text.toLowerCase();
 
-  if (/(band karo|so jao|stop jarvis|alvida)/.test(t)) {
+  if (/(band karo|so jao|stop jarvis|alvida|ruko)/.test(t)) {
     activeLoop = false;
     speak('Standby par ja raha hoon sir.', shutdown);
     return;
   }
+
+  // "open / khol / kholo / chalu"  -> app kholo
+  const wantsOpen = /(khol|kholo|open|chalu|चालू|खोल)/.test(t);
+  if (wantsOpen) {
+    for (const key of Object.keys(APP_WORDS)) {
+      if (APP_WORDS[key].some((w) => t.includes(w))) {
+        openApp(key);   // turant, TTS ka wait nahi
+        return;
+      }
+    }
+  }
+
   if (/(time|samay|baje|टाइम|समय)/.test(t)) {
     speak(`Sir, abhi ${new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })} ho rahe hain.`, () => startMicSafe());
     return;
@@ -150,23 +223,14 @@ function handleCommand(text) {
     speak(`Sir, aaj ${new Date().toLocaleDateString('hi-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} hai.`, () => startMicSafe());
     return;
   }
-  if (/(youtube|यूट्यूब)/.test(t) && /(khol|open)/.test(t)) {
-    speak('YouTube khol raha hoon sir.', () => startMicSafe());
-    window.location.href = 'vnd.youtube://';
-    return;
-  }
-  if (/(google|गूगल)/.test(t) && /(khol|open)/.test(t)) {
-    speak('Google khol raha hoon sir.', () => startMicSafe());
-    window.location.href = 'googlechrome://';
-    return;
-  }
+
   askGemini(text);
 }
 
 async function askGemini(promptText) {
   showError('');
   history.push({ role: 'user', parts: [{ text: promptText }] });
-  if (history.length > 14) history = history.slice(-14);
+  if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
   if (history[0].role !== 'user') history.shift();
 
   try {
@@ -204,9 +268,9 @@ core.onclick = async () => {
   setOrb('center-orb');
 
   try {
-    await ensurePermissions();          // mic + notification
-    await startBackgroundService();     // foreground service ON
-    askBatteryExemption();              // battery saver popup
+    await ensurePermissions();
+    await startBackgroundService();
+    askBatteryExemption();
   } catch (e) {
     activeLoop = false;
     showError(e.message || String(e));
