@@ -39,30 +39,38 @@ jobs:
       - name: Setup Fixed Signing Key
         run: |
           mkdir -p ~/.android
-          shopt -s nullglob
-          KEYSTORE=""
-          for f in keystore/*.keystore *.keystore; do
-            KEYSTORE="$f"; break
-          done
-          B64=""
-          for f in keystore/*.b64 *.b64; do
-            B64="$f"; break
-          done
+          echo "=== repo me mili key/base64 files ==="
+          find . -path ./node_modules -prune -o -path ./android -prune -o -type f \
+            \( -name "*.keystore" -o -name "*.jks" -o -name "*.b64" -o -name "*.base64" \) -print || true
+          echo "======================================"
 
-          if [ -n "$KEYSTORE" ]; then
-            cp "$KEYSTORE" ~/.android/debug.keystore
-            echo "Fixed keystore mila ($KEYSTORE) - signature ab har build me same rahega."
+          KEY=$(find . -path ./node_modules -prune -o -path ./android -prune -o -type f -name "*.keystore" -print | head -1)
+          JKS=$(find . -path ./node_modules -prune -o -path ./android -prune -o -type f -name "*.jks" -print | head -1)
+          B64=$(find . -path ./node_modules -prune -o -path ./android -prune -o -type f \( -name "*.b64" -o -name "*.base64" \) -print | head -1)
+
+          if [ -n "$KEY" ]; then
+            cp "$KEY" ~/.android/debug.keystore
+            echo "Fixed keystore mila (file): $KEY"
+          elif [ -n "$JKS" ]; then
+            cp "$JKS" ~/.android/debug.keystore
+            echo "Fixed keystore mila (jks): $JKS"
           elif [ -n "$B64" ]; then
-            base64 -d "$B64" > ~/.android/debug.keystore
-            echo "Fixed keystore mila ($B64) - signature ab har build me same rahega."
+            tr -d ' \r\n\t' < "$B64" | base64 -d > ~/.android/debug.keystore 2>/dev/null || true
+            echo "Fixed keystore mila (base64): $B64 ($(wc -c < ~/.android/debug.keystore) bytes)"
           else
-            echo "::error::Keystore file repo me nahi mila. jarvis-debug.keystore.b64 upload karo (root me ya keystore/ folder me)."
+            echo "::error::Keystore file repo me nahi mili. 'keystore/jarvis-debug.keystore.b64' naam se file upload karo (root ya keystore/ folder me)."
+            echo "Repo root ki files:"
+            ls -la
             exit 1
           fi
 
-          # sanity check: key sach me load ho raha hai?
+          if [ "$(wc -c < ~/.android/debug.keystore)" -lt 1000 ]; then
+            echo "::error::Keystore file chhoti/khaali hai ($(wc -c < ~/.android/debug.keystore) bytes). Base64 file dobara upload karo."
+            exit 1
+          fi
+
           keytool -list -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey > /dev/null \
-            || { echo "::error::Keystore file kharab hai ya password galat hai (android)."; exit 1; }
+            || { echo "::error::Keystore kharab hai ya password galat hai (android)."; exit 1; }
           keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep -E "SHA256|Valid" | head -3
 
       - name: Setup Web Directory, Bundle JS & Capacitor
