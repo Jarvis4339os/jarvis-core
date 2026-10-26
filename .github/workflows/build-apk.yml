@@ -30,11 +30,40 @@ jobs:
           echo "index.html lines: $(wc -l < index.html)"
           echo "main.js lines: $(wc -l < src/main.js)"
           if grep -q "WORKER_URL" index.html; then
-            echo "::warning::index.html me purana JS bacha hua hai (WORKER_URL mila)."
+            echo "::warning::index.html me purana JS bacha hua hai (WORKER_URL mila). App native voice use nahi karega."
           fi
           if grep -q "MAIN_ACTIVITY" .github/workflows/build-apk.yml; then
             echo "::warning::workflow me purana MAIN_ACTIVITY patch bacha hua hai."
           fi
+
+      - name: Setup Fixed Signing Key
+        run: |
+          mkdir -p ~/.android
+          shopt -s nullglob
+          KEYSTORE=""
+          for f in keystore/*.keystore *.keystore; do
+            KEYSTORE="$f"; break
+          done
+          B64=""
+          for f in keystore/*.b64 *.b64; do
+            B64="$f"; break
+          done
+
+          if [ -n "$KEYSTORE" ]; then
+            cp "$KEYSTORE" ~/.android/debug.keystore
+            echo "Fixed keystore mila ($KEYSTORE) - signature ab har build me same rahega."
+          elif [ -n "$B64" ]; then
+            base64 -d "$B64" > ~/.android/debug.keystore
+            echo "Fixed keystore mila ($B64) - signature ab har build me same rahega."
+          else
+            echo "::error::Keystore file repo me nahi mila. jarvis-debug.keystore.b64 upload karo (root me ya keystore/ folder me)."
+            exit 1
+          fi
+
+          # sanity check: key sach me load ho raha hai?
+          keytool -list -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey > /dev/null \
+            || { echo "::error::Keystore file kharab hai ya password galat hai (android)."; exit 1; }
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep -E "SHA256|Valid" | head -3
 
       - name: Setup Web Directory, Bundle JS & Capacitor
         run: |
@@ -76,6 +105,11 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+
+      - name: Show APK Signature
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
+          $BT/apksigner verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep -E "SHA-256 digest"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
