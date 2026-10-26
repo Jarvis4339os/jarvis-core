@@ -42,15 +42,11 @@ jobs:
           EOF
           npx cap add android
 
-      - name: Inject Android Permissions & Enable WebView Mic
+      - name: Inject Android Permissions
         run: |
           sed -i '/<application/i <uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n<uses-permission android:name="android.permission.WAKE_LOCK" />\n<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />\n<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' android/app/src/main/AndroidManifest.xml
 
           sed -i '/<\/manifest>/i <queries>\n<package android:name="com.google.android.youtube" />\n<package android:name="com.android.chrome" />\n<\/queries>' android/app/src/main/AndroidManifest.xml
-
-          MAIN_ACTIVITY="android/app/src/main/java/com/jarvis/hud/MainActivity.java"
-          sed -i '/import com.getcapacitor.BridgeActivity;/a import android.webkit.PermissionRequest;\nimport android.webkit.WebChromeClient;' "$MAIN_ACTIVITY"
-          sed -i '/public class MainActivity extends BridgeActivity {/a \    @Override\n    public void onStart() {\n        super.onStart();\n        if (this.bridge != null && this.bridge.getWebView() != null) {\n            this.bridge.getWebView().setWebChromeClient(new WebChromeClient() {\n                @Override\n                public void onPermissionRequest(final PermissionRequest request) {\n                    request.grant(request.getResources());\n                }\n            });\n        }\n    }' "$MAIN_ACTIVITY"
 
           npx cap sync android
 
