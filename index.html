@@ -40,8 +40,8 @@
   </div>
 
   <div class="status-panel">
-    <div id="statusText">INITIALIZING SYSTEM...</div>
-    <div id="transcript">Jarvis online ho raha hai...</div>
+    <div id="statusText">TAP CORE TO START</div>
+    <div id="transcript">Jarvis standby par hai. Ek baar Arc Core par tap karein.</div>
     <div id="errorBox"></div>
   </div>
 
@@ -78,9 +78,10 @@
 
   function initRecognition() {
     if (!SpeechRecognition) {
-      errorBox.innerText = "Speech recognition is device par support nahi karta.";
+      errorBox.innerText = "Speech recognition is phone par supported nahi hai.";
       return;
     }
+    if (recognition) return;
 
     recognition = new SpeechRecognition();
     recognition.continuous = false;
@@ -105,16 +106,13 @@
 
     recognition.onerror = (e) => {
       if (e.error === 'not-allowed') {
-        errorBox.innerText = "Microphone permission allow kijiye.";
-      }
-      if (e.error !== 'no-speech' && e.error !== 'aborted') {
-        errorBox.innerText = "Mic status: " + e.error;
+        errorBox.innerText = "Phone Settings se JARVIS App ki Microphone permission on karein.";
       }
     };
 
     recognition.onend = () => {
       if (!isSpeaking && activeLoop) {
-        setTimeout(safeStartListening, 600);
+        setTimeout(safeStartListening, 400);
       }
     };
   }
@@ -123,9 +121,7 @@
     if (!activeLoop || isSpeaking || !recognition) return;
     try {
       recognition.start();
-    } catch (e) {
-      // Pehle se running ho toh ignore karein
-    }
+    } catch (e) {}
   }
 
   function safeStopListening() {
@@ -136,10 +132,10 @@
   }
 
   document.getElementById('core').onclick = () => {
-    if (activeLoop) {
-      stopJarvis();
-    } else {
+    if (!activeLoop) {
       startJarvis();
+    } else {
+      stopJarvis();
     }
   };
 
@@ -162,7 +158,7 @@
   function handleCommand(text) {
     const t = text.toLowerCase();
     if (/(band karo|so jao|stop jarvis|bye|alvida)/.test(t)) {
-      speak("Theek hai sir, standby mode par ja raha hoon.", () => stopJarvis());
+      speak("Theek hai sir, standby par ja raha hoon.", () => stopJarvis());
       return;
     }
     if (/(time|samay|baje|टाइम|समय|बजे)/.test(t)) {
@@ -241,7 +237,7 @@
       if (after) { after(); return; }
       if (activeLoop) {
         statusText.innerText = 'JARVIS SUN RAHA HAI...';
-        setTimeout(safeStartListening, 400);
+        setTimeout(safeStartListening, 300);
       }
     };
 
@@ -255,13 +251,6 @@
     u.onerror = done;
     speechSynthesis.speak(u);
   }
-
-  // Window load hote hi boot karein
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      startJarvis();
-    }, 800);
-  });
 </script>
 </body>
 </html>
