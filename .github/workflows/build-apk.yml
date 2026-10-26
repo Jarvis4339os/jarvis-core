@@ -28,6 +28,7 @@ jobs:
           npm init -y
           npm install --legacy-peer-deps \
             @capacitor/core @capacitor/cli @capacitor/android \
+            @capacitor/app-launcher \
             @capacitor-community/speech-recognition \
             @capacitor-community/text-to-speech \
             @anuradev/capacitor-background-mode
@@ -46,7 +47,7 @@ jobs:
         run: |
           sed -i '/<application/i <uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n<uses-permission android:name="android.permission.WAKE_LOCK" />\n<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />\n<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' android/app/src/main/AndroidManifest.xml
 
-          sed -i '/<\/manifest>/i <queries>\n<package android:name="com.google.android.youtube" />\n<package android:name="com.android.chrome" />\n<\/queries>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<\/manifest>/i <queries>\n<package android:name="com.google.android.youtube" />\n<package android:name="com.android.chrome" />\n<package android:name="com.whatsapp" />\n<package android:name="com.instagram.android" />\n<package android:name="com.facebook.katana" />\n<package android:name="org.telegram.messenger" />\n<\/queries>' android/app/src/main/AndroidManifest.xml
 
           npx cap sync android
 
