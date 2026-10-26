@@ -21,19 +21,37 @@ jobs:
         with:
           node-version: 22
 
+      - name: Check Required Files
+        run: |
+          echo "Repo root ki files:"
+          ls -la
+          test -f index.html || { echo "::error::index.html repo me nahi mila (root me hona chahiye)"; exit 1; }
+          test -f src/main.js || { echo "::error::src/main.js nahi mila bhai - pehle wo file banao"; exit 1; }
+          echo "index.html lines: $(wc -l < index.html)"
+          echo "main.js lines: $(wc -l < src/main.js)"
+          if grep -q "WORKER_URL" index.html; then
+            echo "::warning::index.html me purana JS bacha hua hai (WORKER_URL mila)."
+          fi
+          if grep -q "MAIN_ACTIVITY" .github/workflows/build-apk.yml; then
+            echo "::warning::workflow me purana MAIN_ACTIVITY patch bacha hua hai."
+          fi
+
       - name: Setup Web Directory, Bundle JS & Capacitor
         run: |
+          rm -rf www android
           mkdir -p www
           cp index.html www/index.html
           npm init -y
           npm install --legacy-peer-deps \
             @capacitor/core @capacitor/cli @capacitor/android \
             @capacitor/app-launcher \
+            @capacitor-community/contacts \
             @capacitor-community/speech-recognition \
             @capacitor-community/text-to-speech \
             @anuradev/capacitor-background-mode
           npm install --legacy-peer-deps -D esbuild
           npx esbuild src/main.js --bundle --minify --format=iife --outfile=www/app.js
+          ls -lh www
           cat << 'EOF' > capacitor.config.json
           {
             "appId": "com.jarvis.hud",
@@ -45,11 +63,13 @@ jobs:
 
       - name: Inject Android Permissions
         run: |
-          sed -i '/<application/i <uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n<uses-permission android:name="android.permission.WAKE_LOCK" />\n<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />\n<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' android/app/src/main/AndroidManifest.xml
+          sed -i '/<application/i <uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n<uses-permission android:name="android.permission.WAKE_LOCK" />\n<uses-permission android:name="android.permission.READ_CONTACTS" />\n<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />\n<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' android/app/src/main/AndroidManifest.xml
 
-          sed -i '/<\/manifest>/i <queries>\n<package android:name="com.google.android.youtube" />\n<package android:name="com.android.chrome" />\n<package android:name="com.whatsapp" />\n<package android:name="com.instagram.android" />\n<package android:name="com.facebook.katana" />\n<package android:name="org.telegram.messenger" />\n<\/queries>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<\/manifest>/i <queries>\n<package android:name="com.google.android.youtube" />\n<package android:name="com.android.chrome" />\n<package android:name="com.whatsapp" />\n<package android:name="com.instagram.android" />\n<package android:name="com.facebook.katana" />\n<package android:name="org.telegram.messenger" />\n<package android:name="com.snapchat.android" />\n<package android:name="com.spotify.music" />\n<package android:name="com.google.android.gm" />\n<package android:name="com.google.android.apps.maps" />\n<package android:name="com.android.vending" />\n<package android:name="com.phonepe.app" />\n<package android:name="com.google.android.apps.nbu.paisa.user" />\n<package android:name="net.one97.paytm" />\n<package android:name="in.swiggy.android" />\n<package android:name="com.application.zomato" />\n<package android:name="com.ubercab" />\n<package android:name="com.netflix.mediaclient" />\n<package android:name="com.linkedin.android" />\n<\/queries>' android/app/src/main/AndroidManifest.xml
 
+          grep -c "uses-permission" android/app/src/main/AndroidManifest.xml
           npx cap sync android
+          ls -lh android/app/src/main/assets/public
 
       - name: Build Debug APK
         working-directory: android
