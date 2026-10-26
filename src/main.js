@@ -30,17 +30,17 @@ const setOrb = (c) => { orb.className = c; };
 const setStatus = (t) => { statusText.innerText = t; };
 
 const DEV = {
-  'à¤•':'k','à¤–':'kh','à¤—':'g','à¤˜':'gh','à¤™':'n','à¤š':'ch','à¤›':'chh','à¤œ':'j','à¤':'jh','à¤ž':'n',
-  'à¤Ÿ':'t','à¤ ':'th','à¤¡':'d','à¤¢':'dh','à¤£':'n','à¤¤':'t','à¤¥':'th','à¤¦':'d','à¤§':'dh','à¤¨':'n',
-  'à¤ª':'p','à¤«':'ph','à¤¬':'b','à¤­':'bh','à¤®':'m','à¤¯':'y','à¤°':'r','à¤²':'l','à¤µ':'v','à¤¶':'sh',
-  'à¤·':'sh','à¤¸':'s','à¤¹':'h','à¤³':'l','à¤•à¤¼':'q','à¤–à¤¼':'kh','à¤—à¤¼':'g','à¤œà¤¼':'z','à¤¡à¤¼':'r','à¤¢à¤¼':'rh','à¤«à¤¼':'f',
-  'à¤…':'a','à¤†':'aa','à¤‡':'i','à¤ˆ':'ee','à¤‰':'u','à¤Š':'oo','à¤‹':'ri','à¤':'e','à¤':'ai','à¤“':'o','à¤”':'au',
-  'à¤¾':'a','à¤¿':'i','à¥€':'ee','à¥':'u','à¥‚':'oo','à¥ƒ':'ri','à¥‡':'e','à¥ˆ':'ai','à¥‹':'o','à¥Œ':'au','à¥‰':'o','à¥…':'e',
-  'à¤‚':'n','à¤':'n','à¤ƒ':'h','à¥':'','à¤¼':'','à¥¤':' ',
-  'à¥¦':'0','à¥§':'1','à¥¨':'2','à¥©':'3','à¥ª':'4','à¥«':'5','à¥¬':'6','à¥­':'7','à¥®':'8','à¥¯':'9'
+  '\u0915':'k','\u0916':'kh','\u0917':'g','\u0918':'gh','\u0919':'n','\u091A':'ch','\u091B':'chh','\u091C':'j','\u091D':'jh','\u091E':'n',
+  '\u091F':'t','\u0920':'th','\u0921':'d','\u0922':'dh','\u0923':'n','\u0924':'t','\u0925':'th','\u0926':'d','\u0927':'dh','\u0928':'n',
+  '\u092A':'p','\u092B':'ph','\u092C':'b','\u092D':'bh','\u092E':'m','\u092F':'y','\u0930':'r','\u0932':'l','\u0935':'v','\u0936':'sh',
+  '\u0937':'sh','\u0938':'s','\u0939':'h','\u0933':'l','\u0915\u093C':'q','\u0916\u093C':'kh','\u0917\u093C':'g','\u091C\u093C':'z','\u0921\u093C':'r','\u0922\u093C':'rh','\u092B\u093C':'f',
+  '\u0905':'a','\u0906':'aa','\u0907':'i','\u0908':'ee','\u0909':'u','\u090A':'oo','\u090B':'ri','\u090F':'e','\u0910':'ai','\u0913':'o','\u0914':'au',
+  '\u093E':'a','\u093F':'i','\u0940':'ee','\u0941':'u','\u0942':'oo','\u0943':'ri','\u0947':'e','\u0948':'ai','\u094B':'o','\u094C':'au','\u0949':'o','\u0945':'e',
+  '\u0902':'n','\u0901':'n','\u0903':'h','\u094D':'','\u093C':'','\u0964':' ',
+  '\u0966':'0','\u0967':'1','\u0968':'2','\u0969':'3','\u096A':'4','\u096B':'5','\u096C':'6','\u096D':'7','\u096E':'8','\u096F':'9'
 };
-const CONS = new Set('à¤• à¤– à¤— à¤˜ à¤™ à¤š à¤› à¤œ à¤ à¤ž à¤Ÿ à¤  à¤¡ à¤¢ à¤£ à¤¤ à¤¥ à¤¦ à¤§ à¤¨ à¤ª à¤« à¤¬ à¤­ à¤® à¤¯ à¤° à¤² à¤µ à¤¶ à¤· à¤¸ à¤¹ à¤•à¤¼ à¤–à¤¼ à¤—à¤¼ à¤œà¤¼ à¤¡à¤¼ à¤¢à¤¼ à¤«à¤¼'.split(' '));
-const MATRA = new Set('à¤¾ à¤¿ à¥€ à¥ à¥‚ à¥ƒ à¥‡ à¥ˆ à¥‹ à¥Œ à¥‰ à¥… à¤‚ à¤ à¤ƒ à¥'.split(' '));
+const CONS = new Set('\u0915 \u0916 \u0917 \u0918 \u0919 \u091A \u091B \u091C \u091D \u091E \u091F \u0920 \u0921 \u0922 \u0923 \u0924 \u0925 \u0926 \u0927 \u0928 \u092A \u092B \u092C \u092D \u092E \u092F \u0930 \u0932 \u0935 \u0936 \u0937 \u0938 \u0939 \u0915\u093C \u0916\u093C \u0917\u093C \u091C\u093C \u0921\u093C \u0922\u093C \u092B\u093C'.split(' '));
+const MATRA = new Set('\u093E \u093F \u0940 \u0941 \u0942 \u0943 \u0947 \u0948 \u094B \u094C \u0949 \u0945 \u0902 \u0901 \u0903 \u094D'.split(' '));
 
 function devaToLatin(input) {
   const ch = Array.from(String(input || ''));
@@ -51,7 +51,7 @@ function devaToLatin(input) {
     const m = DEV[c];
     if (m === undefined) { out += c; continue; }
     out += m;
-    if (CONS.has(c) && next !== 'à¥' && !(next && MATRA.has(next))) out += 'a';
+    if (CONS.has(c) && next !== '\u094D' && !(next && MATRA.has(next))) out += 'a';
   }
   return out;
 }
@@ -60,9 +60,9 @@ const norm = (s) => devaToLatin(s).toLowerCase().replace(/[^a-z0-9\u0900-\u097F]
 
 const DIGIT_WORDS = {
   zero:'0', oh:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6', seven:'7', eight:'8', nine:'9',
-  'double':'d', 'triple':'t', 'à¤¡à¤¬à¤²':'d',
-  'à¤¶à¥‚à¤¨à¥à¤¯':'0','à¤œà¤¼à¥€à¤°à¥‹':'0','à¤œà¥€à¤°à¥‹':'0','à¤à¤•':'1','à¤¦à¥‹':'2','à¤¤à¥€à¤¨':'3','à¤šà¤¾à¤°':'4','à¤ªà¤¾à¤‚à¤š':'5','à¤ªà¤¾à¤à¤š':'5',
-  'à¤›à¤¹':'6','à¤›à¥‡':'6','à¤¸à¤¾à¤¤':'7','à¤†à¤ ':'8','à¤¨à¥Œ':'9'
+  'double':'d', 'triple':'t', '\u0921\u092C\u0932':'d',
+  '\u0936\u0942\u0928\u094D\u092F':'0','\u091C\u093C\u0940\u0930\u094B':'0','\u091C\u0940\u0930\u094B':'0','\u090F\u0915':'1','\u0926\u094B':'2','\u0924\u0940\u0928':'3','\u091A\u093E\u0930':'4','\u092A\u093E\u0902\u091A':'5','\u092A\u093E\u0901\u091A':'5',
+  '\u091B\u0939':'6','\u091B\u0947':'6','\u0938\u093E\u0924':'7','\u0906\u0920':'8','\u0928\u094C':'9'
 };
 
 function extractNumber(raw) {
@@ -85,26 +85,26 @@ const getAliases = () => { try { return JSON.parse(localStorage.getItem(ALIAS_KE
 const setAliases = (o) => { try { localStorage.setItem(ALIAS_KEY, JSON.stringify(o)); } catch (e) {} };
 
 const APPS = [
-  { label: 'YouTube', key: ['youtube', 'you tube', 'à¤¯à¥‚à¤Ÿà¥à¤¯à¥‚à¤¬', 'yt'], urls: ['vnd.youtube://', 'https://www.youtube.com'] },
-  { label: 'WhatsApp', key: ['whatsapp', 'whats app', 'à¤µà¥à¤¹à¤¾à¤Ÿà¥à¤¸à¤à¤ª', 'à¤µà¤¾à¤Ÿà¥à¤¸à¤à¤ª', 'à¤µà¥à¤¹à¤¾à¤Ÿà¥à¤¸à¤à¤ª'], urls: ['whatsapp://send'] },
-  { label: 'Instagram', key: ['instagram', 'insta', 'à¤‡à¤‚à¤¸à¥à¤Ÿà¤¾à¤—à¥à¤°à¤¾à¤®', 'à¤‡à¤¨à¥à¤¸à¥à¤Ÿà¤¾à¤—à¥à¤°à¤¾à¤®'], urls: ['instagram://app', 'https://www.instagram.com'] },
-  { label: 'Facebook', key: ['facebook', 'fb', 'à¤«à¥‡à¤¸à¤¬à¥à¤•'], urls: ['fb://facewebmodal', 'https://www.facebook.com'] },
-  { label: 'Telegram', key: ['telegram', 'à¤Ÿà¥‡à¤²à¥€à¤—à¥à¤°à¤¾à¤®'], urls: ['tg://', 'https://telegram.org'] },
-  { label: 'Snapchat', key: ['snapchat', 'à¤¸à¥à¤¨à¥ˆà¤ªà¤šà¥ˆà¤Ÿ'], urls: ['snapchat://', 'https://www.snapchat.com'] },
-  { label: 'Spotify', key: ['spotify', 'à¤¸à¥à¤ªà¥‰à¤Ÿà¤¿à¤«à¤¾à¤ˆ'], urls: ['spotify://'] },
-  { label: 'Gmail', key: ['gmail', 'à¤œà¥€à¤®à¥‡à¤²'], urls: ['googlegmail://'] },
-  { label: 'Google', key: ['google', 'à¤—à¥‚à¤—à¤²'], urls: ['https://www.google.com'] },
-  { label: 'Chrome', key: ['chrome', 'à¤•à¥à¤°à¥‹à¤®', 'browser', 'à¤¬à¥à¤°à¤¾à¤‰à¤œà¤¼à¤°'], urls: ['https://www.google.com'] },
-  { label: 'Google Maps', key: ['maps', 'map', 'à¤¨à¤•à¥à¤¶à¤¾', 'à¤®à¥ˆà¤ªà¥à¤¸'], urls: ['geo:0,0?q='] },
-  { label: 'Play Store', key: ['play store', 'playstore', 'à¤ªà¥à¤²à¥‡ à¤¸à¥à¤Ÿà¥‹à¤°'], urls: ['market://search?q='] },
-  { label: 'PhonePe', key: ['phonepe', 'à¤«à¥‹à¤¨à¤ªà¥‡'], urls: ['phonepe://'] },
-  { label: 'Google Pay', key: ['google pay', 'gpay', 'à¤œà¥€à¤ªà¥‡'], urls: ['tez://'] },
-  { label: 'Paytm', key: ['paytm', 'à¤ªà¥‡à¤Ÿà¥€à¤à¤®'], urls: ['paytmmp://'] },
-  { label: 'Swiggy', key: ['swiggy', 'à¤¸à¥à¤µà¤¿à¤—à¥€'], urls: ['swiggy://'] },
-  { label: 'Zomato', key: ['zomato', 'à¤œà¤¼à¥‹à¤®à¥ˆà¤Ÿà¥‹', 'à¤œà¥‹à¤®à¥ˆà¤Ÿà¥‹'], urls: ['zomato://'] },
-  { label: 'Uber', key: ['uber', 'à¤‰à¤¬à¤°'], urls: ['uber://'] },
-  { label: 'Netflix', key: ['netflix', 'à¤¨à¥‡à¤Ÿà¤«à¥à¤²à¤¿à¤•à¥à¤¸'], urls: ['nflx://'] },
-  { label: 'LinkedIn', key: ['linkedin', 'à¤²à¤¿à¤‚à¤•à¥à¤¡à¤‡à¤¨'], urls: ['linkedin://', 'https://www.linkedin.com'] }
+  { label: 'YouTube', key: ['youtube', 'you tube', '\u092F\u0942\u091F\u094D\u092F\u0942\u092C', 'yt'], urls: ['vnd.youtube://', 'https://www.youtube.com'] },
+  { label: 'WhatsApp', key: ['whatsapp', 'whats app', '\u0935\u094D\u0939\u093E\u091F\u094D\u0938\u090F\u092A', '\u0935\u093E\u091F\u094D\u0938\u090F\u092A', '\u0935\u094D\u0939\u093E\u091F\u094D\u0938\u0910\u092A'], urls: ['whatsapp://send'] },
+  { label: 'Instagram', key: ['instagram', 'insta', '\u0907\u0902\u0938\u094D\u091F\u093E\u0917\u094D\u0930\u093E\u092E', '\u0907\u0928\u094D\u0938\u094D\u091F\u093E\u0917\u094D\u0930\u093E\u092E'], urls: ['instagram://app', 'https://www.instagram.com'] },
+  { label: 'Facebook', key: ['facebook', 'fb', '\u092B\u0947\u0938\u092C\u0941\u0915'], urls: ['fb://facewebmodal', 'https://www.facebook.com'] },
+  { label: 'Telegram', key: ['telegram', '\u091F\u0947\u0932\u0940\u0917\u094D\u0930\u093E\u092E'], urls: ['tg://', 'https://telegram.org'] },
+  { label: 'Snapchat', key: ['snapchat', '\u0938\u094D\u0928\u0948\u092A\u091A\u0948\u091F'], urls: ['snapchat://', 'https://www.snapchat.com'] },
+  { label: 'Spotify', key: ['spotify', '\u0938\u094D\u092A\u0949\u091F\u093F\u092B\u093E\u0908'], urls: ['spotify://'] },
+  { label: 'Gmail', key: ['gmail', '\u091C\u0940\u092E\u0947\u0932'], urls: ['googlegmail://'] },
+  { label: 'Google', key: ['google', '\u0917\u0942\u0917\u0932'], urls: ['https://www.google.com'] },
+  { label: 'Chrome', key: ['chrome', '\u0915\u094D\u0930\u094B\u092E', 'browser', '\u092C\u094D\u0930\u093E\u0909\u091C\u093C\u0930'], urls: ['https://www.google.com'] },
+  { label: 'Google Maps', key: ['maps', 'map', '\u0928\u0915\u094D\u0936\u093E', '\u092E\u0948\u092A\u094D\u0938'], urls: ['geo:0,0?q='] },
+  { label: 'Play Store', key: ['play store', 'playstore', '\u092A\u094D\u0932\u0947 \u0938\u094D\u091F\u094B\u0930'], urls: ['market://search?q='] },
+  { label: 'PhonePe', key: ['phonepe', '\u092B\u094B\u0928\u092A\u0947'], urls: ['phonepe://'] },
+  { label: 'Google Pay', key: ['google pay', 'gpay', '\u091C\u0940\u092A\u0947'], urls: ['tez://'] },
+  { label: 'Paytm', key: ['paytm', '\u092A\u0947\u091F\u0940\u090F\u092E'], urls: ['paytmmp://'] },
+  { label: 'Swiggy', key: ['swiggy', '\u0938\u094D\u0935\u093F\u0917\u0940'], urls: ['swiggy://'] },
+  { label: 'Zomato', key: ['zomato', '\u091C\u093C\u094B\u092E\u0948\u091F\u094B', '\u091C\u094B\u092E\u0948\u091F\u094B'], urls: ['zomato://'] },
+  { label: 'Uber', key: ['uber', '\u0909\u092C\u0930'], urls: ['uber://'] },
+  { label: 'Netflix', key: ['netflix', '\u0928\u0947\u091F\u092B\u094D\u0932\u093F\u0915\u094D\u0938'], urls: ['nflx://'] },
+  { label: 'LinkedIn', key: ['linkedin', '\u0932\u093F\u0902\u0915\u094D\u0921\u0907\u0928'], urls: ['linkedin://', 'https://www.linkedin.com'] }
 ];
 
 async function openFirst(urls) {
@@ -185,7 +185,7 @@ async function initTts() {
 }
 
 function ttsTimeoutFor(text) {
-  return 5000 + text.length * 130;
+  return 8000 + text.length * 160;
 }
 
 async function speakNative(text, lang) {
@@ -228,7 +228,10 @@ async function say(rawText) {
     await initTts();
 
     const candidates = [];
-    for (const l of [ttsLang, ...(ttsAvailable || []), ...TTS_ORDER]) {
+    // Devanagari text = hi-IN, Latin (Hinglish) text = en-IN pehle (engine Hindi me slow/missing hai)
+    const hasDev = /[\u0900-\u097F]/.test(text);
+    const preferred = hasDev ? ['hi-IN', 'en-IN', 'en-US'] : ['en-IN', 'en-US', 'hi-IN'];
+    for (const l of [...preferred, ttsLang, ...(ttsAvailable || []), ...TTS_ORDER]) {
       if (l && candidates.indexOf(l) === -1) candidates.push(l);
     }
 
@@ -308,7 +311,7 @@ async function voiceTest() {
     try {
       await withTimeout(
         TextToSpeech.speak({ text: 'Ek do teen. Jarvis bol raha hai.', lang: lang, rate: 1.0, pitch: 1.0, volume: 1.0 }),
-        9000
+        14000
       );
       dbg(lang + ': OK (' + (Date.now() - t0) + 'ms)');
       return lang;
@@ -356,9 +359,9 @@ async function askGemini(promptText) {
 
 function extractCallName(raw) {
   let t = String(raw || '').toLowerCase();
-  t = t.replace(/(à¤•à¥‹|à¤¸à¥‡|ko|se)?\s*(phone|call|dial|fon|à¤«à¥‹à¤¨|à¤•à¥‰à¤²|à¤•à¤¾à¤²|à¤®à¤¿à¤²à¤¾à¤“|milao)\s*(à¤•à¤°à¥‹|à¤•à¤°|à¤•à¤° à¤¦à¥‹|karo|kar do|kar|lagao|à¤²à¤—à¤¾à¤“|lagana|à¤²à¤—à¤¾à¤¨à¤¾)?/g, ' ');
+  t = t.replace(/(\u0915\u094B|\u0938\u0947|ko|se)?\s*(phone|call|dial|fon|\u092B\u094B\u0928|\u0915\u0949\u0932|\u0915\u093E\u0932|\u092E\u093F\u0932\u093E\u0913|milao)\s*(\u0915\u0930\u094B|\u0915\u0930|\u0915\u0930 \u0926\u094B|karo|kar do|kar|lagao|\u0932\u0917\u093E\u0913|lagana|\u0932\u0917\u093E\u0928\u093E)?/g, ' ');
   t = t.replace(/\b(please|sir|jarvis|zara|abhi|mere|mera|the)\b/g, ' ');
-  t = t.replace(/[?!,.à¥¤]/g, ' ');
+  t = t.replace(/[?!,.\u0964]/g, ' ');
   return t.replace(/\s+/g, ' ').trim();
 }
 
@@ -404,7 +407,7 @@ async function routeLocal(raw) {
   const latin = devaToLatin(raw).toLowerCase();
   const probe = latin + ' ' + String(raw).toLowerCase();
 
-  if (/(band karo|band kar|so jao|stop jarvis|alvida|bye jarvis|à¤¬à¤‚à¤¦ à¤•à¤°à¥‹|à¤¸à¥‹ à¤œà¤¾à¤“)/.test(probe)) {
+  if (/(band karo|band kar|so jao|stop jarvis|alvida|bye jarvis|\u092C\u0902\u0926 \u0915\u0930\u094B|\u0938\u094B \u091C\u093E\u0913)/.test(probe)) {
     await say('Theek hai sir, standby par ja raha hoon.');
     await stopEverything();
     return true;
@@ -423,21 +426,21 @@ async function routeLocal(raw) {
     }
   }
 
-  if (/(date|tarikh|tareekh|tarik|din|à¤¡à¥‡à¤Ÿ|à¤¤à¤¾à¤°à¥€à¤–à¤¼|à¤¤à¤¾à¤°à¥€à¤–|à¤¤à¤¾à¤°à¤¿à¤–|à¤¦à¤¿à¤¨|à¤†à¤œ)/.test(probe)) {
-    if (!/(time|samay|baje|à¤Ÿà¤¾à¤‡à¤®|à¤¸à¤®à¤¯|à¤¬à¤œà¥‡)/.test(probe)) {
+  if (/(date|tarikh|tareekh|tarik|din|\u0921\u0947\u091F|\u0924\u093E\u0930\u0940\u0916\u093C|\u0924\u093E\u0930\u0940\u0916|\u0924\u093E\u0930\u093F\u0916|\u0926\u093F\u0928|\u0906\u091C)/.test(probe)) {
+    if (!/(time|samay|baje|\u091F\u093E\u0907\u092E|\u0938\u092E\u092F|\u092C\u091C\u0947)/.test(probe)) {
       const d = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       await say('Sir, aaj ' + d + ' hai.');
       return true;
     }
   }
 
-  if (/(time|samay|baje|à¤Ÿà¤¾à¤‡à¤®|à¤¸à¤®à¤¯|à¤¬à¤œà¥‡)/.test(probe)) {
+  if (/(time|samay|baje|\u091F\u093E\u0907\u092E|\u0938\u092E\u092F|\u092C\u091C\u0947)/.test(probe)) {
     const now = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
     await say('Sir, abhi ' + now + ' ho rahe hain.');
     return true;
   }
 
-  if (/(battery|à¤¬à¥ˆà¤Ÿà¤°à¥€)/.test(probe)) {
+  if (/(battery|\u092C\u0948\u091F\u0930\u0940)/.test(probe)) {
     let pct = null;
     try {
       if (navigator.getBattery) {
@@ -449,12 +452,12 @@ async function routeLocal(raw) {
     return true;
   }
 
-  if (/(call|phone|fon|dial|milao|à¤®à¤¿à¤²à¤¾à¤“|à¤•à¥‰à¤²|à¤«à¥‹à¤¨|à¤•à¤¾à¤²)/.test(probe)) {
+  if (/(call|phone|fon|dial|milao|\u092E\u093F\u0932\u093E\u0913|\u0915\u0949\u0932|\u092B\u094B\u0928|\u0915\u093E\u0932)/.test(probe)) {
     const done = await handleCall(raw);
     if (done) return true;
   }
 
-  if (/(khol|kholo|open|chalao|chala do|launch|à¤–à¥‹à¤²|à¤–à¥‹à¤²à¥‹|à¤“à¤ªà¤¨|à¤šà¤¾à¤²à¥‚)/.test(probe)) {
+  if (/(khol|kholo|open|chalao|chala do|launch|\u0916\u094B\u0932|\u0916\u094B\u0932\u094B|\u0913\u092A\u0928|\u091A\u093E\u0932\u0942)/.test(probe)) {
     for (const app of APPS) {
       if (app.key.some((k) => probe.includes(k))) {
         const ok = await openFirst(app.urls);
@@ -613,6 +616,7 @@ if (testBtn) {
   testBtn.onclick = async (e) => {
     e.stopPropagation();
     errorBox.innerText = '';
-    await voiceTest();
+    const okLang = await voiceTest();
+    if (okLang) { ttsLang = okLang; dbg('ttsLang set: ' + okLang); }
   };
 }
