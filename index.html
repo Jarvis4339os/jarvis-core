@@ -100,6 +100,8 @@
       background: radial-gradient(circle at 46% 48%, transparent 40%, rgba(48, 17, 0, 0.32) 72%, rgba(16, 5, 0, 0.86) 100%);
       box-shadow: inset -8px -12px 28px rgba(0, 0, 0, 0.55), inset 4px 6px 18px rgba(255, 210, 120, 0.14);
     }
+    .orb-sheen { position: absolute; inset: -6%; border-radius: 50%; pointer-events: none; mix-blend-mode: screen; opacity: 0.45; background: conic-gradient(from 0deg, transparent 0 58%, rgba(255, 255, 255, 0.34) 72%, transparent 88% 100%); animation: sheenSpin 9s linear infinite; }
+    @keyframes sheenSpin { to { transform: rotate(360deg); } }
     .orb-label { position: relative; z-index: 3; font-size: 12px; letter-spacing: 4px; font-weight: 800; color: rgba(60, 24, 0, 0.62); text-shadow: 0 1px 0 rgba(255, 236, 190, 0.5); }
     @keyframes orbBreathe { 50% { transform: scale(1.035); } }
     @keyframes pulseCore {
@@ -136,6 +138,8 @@
     }
     .panel::before { content: ""; position: absolute; top: 0; left: 13px; width: 38%; height: 2px; background: linear-gradient(90deg, var(--gold), transparent); }
     #transcript { min-height: 56px; font-size: 15px; line-height: 1.62; color: #ffeecd; text-align: center; word-break: break-word; }
+    /* Jarvis bol raha ho tab bhi jo aap keh rahe ho wo yahan live dikhta hai */
+    #liveBox { min-height: 17px; margin-top: 7px; font-size: 12.5px; color: rgba(53, 224, 255, 0.92); text-align: center; word-break: break-word; text-shadow: 0 0 10px rgba(53, 224, 255, 0.35); }
     #errorBox { color: var(--red); font-size: 12px; margin-top: 8px; word-break: break-word; text-align: center; }
 
     .btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 13px; }
@@ -184,6 +188,7 @@
         <canvas class="orb-tex" id="orbTex" width="256" height="256"></canvas>
         <span class="orb-hi"></span>
         <span class="orb-shade"></span>
+        <span class="orb-sheen"></span>
         <span class="orb-label">JARVIS</span>
       </div>
     </div>
@@ -192,16 +197,18 @@
       <div id="statusText">TAP CORE TO START</div>
       <div class="panel">
         <div id="transcript">Jarvis online hone ke liye taiyaar hai. Core par tap kijiye.</div>
+        <div id="liveBox"></div>
       </div>
       <div id="errorBox"></div>
       <div class="btn-row">
         <button class="hud-btn" id="testVoice">TEST VOICE</button>
         <button class="hud-btn ghost" id="voiceBtn">VOICE: MALE</button>
+        <button class="hud-btn ghost" id="modeBtn">MODE: DUPLEX</button>
       </div>
       <div id="debugBox">TTS diagnostic...</div>
       <div class="hud-foot">
         <span class="tick"></span>
-        <span>SYS // READY</span>
+        <span id="modeTag">DUPLEX // LIVE MIC</span>
         <span class="tick"></span>
       </div>
     </div>
@@ -252,4 +259,4 @@
   <!-- saara JS src/main.js me hai; CI ise bundle karke app.js banata hai -->
   <script src="./app.js"></script>
 </body>
-  </html>
+</html>
