@@ -20,6 +20,9 @@ const errorBox = document.getElementById('errorBox');
 const core = document.getElementById('core');
 const debugBox = document.getElementById('debugBox');
 const testBtn = document.getElementById('testVoice');
+const liveBox = document.getElementById('liveBox');
+const modeTag = document.getElementById('modeTag');
+const modeBtn = document.getElementById('modeBtn');
 
 let history = [];
 let activeLoop = false;
@@ -32,6 +35,25 @@ let ttsVoice = null;
 let ttsReady = false;
 let ttsGoodLang = ''; // jo language SACH ME bol chuki hai (proven)
 const ttsDead = new Set(); // jo language timeout/fail hui - dobara try karke time barbaad na karo
+const ttsFail = {}; // har language kitni baar fail hui (2 = dead)
+
+// ---- full-duplex state (ChatGPT / Gemini Live jaise) ----
+let duplex = true;            // true = bolte waqt bhi sunta hai (barge-in)
+let duplexFails = 0;          // device ne audio roka to apne aap half-duplex ho jao
+let speakGen = 0;             // interrupt par badhta hai - purani sentences ruk jati hain
+let ttsSpokeThisReply = false;// is jawab me kuch bola ja chuka? (duplicate bolna band)
+let micRunning = false;       // recognizer window abhi chal raha hai
+let spokeSinceWindow = false; // is window me Jarvis bhi bola? (echo filter)
+let winText = '';             // is window ka best text
+let winPartialAt = 0;         // aakhri partial ka time
+let winHasSpeech = false;     // is window me kuch suna gaya?
+let winEnded = false;         // recognizer ne khud end kaha (listeningState stopped)
+let livePartial = '';
+let novelBuffer = '';         // Jarvis bolte waqt user ne jo kaha - save rehta hai
+let userQueue = [];           // jo suna gaya, brain usko process karega
+let listenersBound = false;
+const spokenRecent = [];      // Jarvis ne abhi-abhi jo bola (echo filter ke liye)
+const SILENCE_MS = 900;       // itni chup = user ki baat poori
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const setOrb = (c) => { orb.className = c; };
@@ -65,6 +87,109 @@ function devaToLatin(input) {
 }
 
 const norm = (s) => devaToLatin(s).toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/g, '');
+
+// ---- words + echo filter ----
+// mic ko Jarvis ki APNI awaaz bhi sunai deti hai. Usko user ki baat na maanne ke liye
+// hum yaad rakhte hain ki Jarvis ne last 20s me kya bola.
+const bw = (s) => String(devaToLatin(s || '')).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+
+function rememberSpoken(text) {
+  const words = bw(text);
+  if (!words.length) return;
+  const now = Date.now();
+  spokenRecent.push({ t: now, words: words });
+  while (spokenRecent.length && now - spokenRecent[0].t > 20000) spokenRecent.shift();
+}
+
+function spokenWordSet() {
+  const set = new Set();
+  const now = Date.now();
+  for (const e of spokenRecent) {
+    if (now - e.t > 20000) continue;
+    for (const w of e.words) set.add(w);
+  }
+  return set;
+}
+
+// Hindi STT Devanagari deta hai (\u092F\u0942\u091F\u094D\u092F\u0942\u092C) jabki hum Latin bolte hain
+// (YouTube) - spelling bilkul alag aati hai. Isliye consonants se compare karte hain:
+// "yootyooba" -> ytb aur "youtube" -> ytb = same awaaz.
+const VOWELISH = new Set('aeiouwy'.split(''));
+function consonantKey(w) {
+  const s = String(w || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (!s) return '';
+  let out = s[0];
+  const seen = new Set([s[0]]);
+  for (let i = 1; i < s.length; i++) {
+    const c = s[i];
+    if (VOWELISH.has(c) || seen.has(c)) continue;
+    seen.add(c);
+    out += c;
+  }
+  return out;
+}
+
+// STT thode words alag likhta hai - isliye fuzzy + consonants dono se match karte hain
+function wordInSet(w, set) {
+  if (set.has(w)) return true;
+  const ck = consonantKey(w);
+  for (const s of set) {
+    if (w.length >= 4 && Math.abs(s.length - w.length) <= 2 && similarity(w, s) >= 0.72) return true;
+    if (ck.length >= 2 && consonantKey(s) === ck) return true;
+  }
+  return false;
+}
+
+// partial me se sirf WO words jo Jarvis ne nahi bole = user ki baat
+function novelWords(partial) {
+  const set = spokenWordSet();
+  const out = [];
+  for (const w of bw(partial)) if (!wordInSet(w, set)) out.push(w);
+  return out;
+}
+
+const FILLER = new Set('ko ka ki ke se me mein hai he hain ho to bhi na ya aur ek sir ji ok okay hmm uh um tha wo ye yeh is us abhi thoda'.split(' '));
+
+// barge-in: user ne 2+ asli naye words bole to turant chup ho jao
+function bargeHold(text) {
+  const strong = novelWords(text).filter((w) => w.length > 2 && !FILLER.has(w));
+  if (!strong.length) return false;
+  const line = strong.join(' ');
+  if (bw(line).length >= bw(novelBuffer).length) novelBuffer = line;
+  return (strong.length >= 2 && strong.join('').length >= 5);
+}
+
+// jo aakhri me suna gaya + jo bolte waqt bacha liya - dono jodo
+function looksLikeEcho(text) {
+  // chhote filler words (ko, hai, to) decide nahi karenge - warna user ki baat ud jaati
+  const words = bw(text).filter((w) => w.length >= 4);
+  if (words.length < 2) return false; // bharosa nahi - user ki baat hi maano
+  const set = spokenWordSet();
+  let hit = 0;
+  for (const w of words) if (wordInSet(w, set)) hit++;
+  return hit / words.length >= 0.72; // mostly humari hi baatein wapas aayi
+}
+
+function takeUserText(finalText) {
+  const f = String(finalText || '').trim();
+  const acc = novelBuffer.trim();
+  novelBuffer = '';
+  let keep = f;
+  if (f && spokeSinceWindow && looksLikeEcho(f)) keep = '';
+  if (!acc) return keep;
+  if (!keep) return acc;
+  const fw = bw(keep);
+  const nw = bw(acc);
+  let hit = 0;
+  for (const w of nw) if (fw.indexOf(w) !== -1) hit++;
+  if (nw.length && hit / nw.length >= 0.5) return keep;
+  return (acc + ' ' + keep).trim();
+}
+
+function applyModeTag() {
+  if (modeTag) modeTag.innerText = duplex ? 'DUPLEX // LIVE MIC' : 'HALF-DUPLEX';
+  if (modeBtn) modeBtn.innerText = 'MODE: ' + (duplex ? 'DUPLEX' : 'HALF');
+}
 
 const DIGIT_WORDS = {
   zero:'0', oh:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6', seven:'7', eight:'8', nine:'9',
@@ -297,7 +422,8 @@ async function bootTts() {
 
 // ek sentence bolne ka timeout - bahut lamba timeout = dheera jawab
 function ttsTimeoutFor(text) {
-  return 3500 + text.length * 110;
+  // asli bolne ki speed (~14 char/sec) ka 2x headroom. Timeout sirf dead engine par lagta hai.
+  return 2500 + text.length * 140;
 }
 
 async function speakNative(text, lang, flush) {
@@ -329,6 +455,8 @@ async function say(rawText) {
   const text = String(rawText);
   transcriptDiv.innerText = 'JARVIS: ' + text;
   const wasActive = activeLoop;
+  const gen = speakGen;
+  ttsSpokeThisReply = false;
   isSpeaking = true;
   setOrb('center-orb speaking');
   setStatus('JARVIS BOL RAHA HAI...');
@@ -340,7 +468,8 @@ async function say(rawText) {
     let spoke = false;
     for (let i = 0; i < chunks.length; i++) {
       if (wasActive && !activeLoop) break; // user ne beech me band kar diya
-      if (await speakSentence(chunks[i], i === 0)) spoke = true;
+      if (gen !== speakGen) break;         // user ne bolna shuru kiya (barge-in)
+      if (await speakSentence(chunks[i], i === 0, gen)) spoke = true;
     }
     if (!spoke) {
       const web = await webSpeak(devaToLatin(text), 'en-IN');
@@ -350,11 +479,11 @@ async function say(rawText) {
       }
     }
   } finally {
-    // awaaz khatam hone ke baad mic ko thoda waqt do, warna recognizer busy ho jata hai
-    await sleep(500);
+    // mic band NAHI karte - full-duplex me recognizer chalta rehta hai
     isSpeaking = false;
     setOrb('center-orb');
     if (!wasActive && !activeLoop) setStatus('TAP CORE TO START');
+    else if (!isThinking) setStatus('JARVIS SUN RAHA HAI...');
   }
 }
 
@@ -457,46 +586,76 @@ function firstBoundary(s) {
   return -1;
 }
 
-// ek sentence bolo - pehli flush, baaki queue me (streaming ke liye)
-async function speakSentence(text, flush) {
+// language order: jo proven hai pehle, phir script ke hisaab se, aur dead sabse aakhir me
+function buildLangOrder(s) {
+  // Devanagari text = hi-IN pehle, Latin (Hinglish) = en-IN pehle
+  const hasDev = /[\u0900-\u097F]/.test(s);
+  const pref = hasDev ? ['hi-IN', 'en-IN', 'en-US'] : ['en-IN', 'en-US', 'hi-IN'];
+  const raw = [];
+  if (ttsGoodLang) raw.push(ttsGoodLang);
+  for (const l of pref) raw.push(l);
+  if (ttsLang) raw.push(ttsLang);
+  for (const l of TTS_ORDER) raw.push(l);
+  const out = [];
+  for (const l of raw) if (l && out.indexOf(l) === -1 && !ttsDead.has(l)) out.push(l);
+  for (const l of raw) if (l && out.indexOf(l) === -1) out.push(l);
+  return out;
+}
+
+// device ne TTS rok diya (audio focus) to duplex band kar do - warna awaaz atakti hai
+function duplexFail() {
+  if (!duplex || !micRunning) return;
+  duplexFails++;
+  if (duplexFails >= 2) {
+    duplex = false;
+    applyModeTag();
+    dbg('DUPLEX OFF (device ne audio roka)');
+  }
+}
+
+// ek sentence bolo. Pehli sentence flush hoti hai, baaki queue me (streaming).
+// ZAROORI: ek sentence sirf EK language me bolte hain - warna wahi line dobara
+// bol kar "atak atak" jaisa lagta tha.
+async function speakSentence(text, flush, gen) {
   const s = String(text || '').trim();
   if (!s) return false;
+  if (gen !== undefined && gen !== speakGen) return false;
   if (flush) {
-    // mic stop + purana TTS clear - dono parallel, pehli awaaz jaldi aaye
-    nStopRec();
-    try { await withTimeout(TextToSpeech.stop(), 1000); } catch (e) {}
+    TextToSpeech.stop().catch(() => {}); // fire-and-forget - pehli awaaz jaldi aaye
     isSpeaking = true;
     setOrb('center-orb speaking');
     setStatus('JARVIS BOL RAHA HAI...');
   }
-  const langs = [];
-  // Devanagari text = hi-IN pehle, Latin (Hinglish) = en-IN pehle
-  const hasDev = /[\u0900-\u097F]/.test(s);
-  const pref = hasDev ? ['hi-IN', 'en-IN', 'en-US'] : ['en-IN', 'en-US', 'hi-IN'];
-  // order: 1) jo language pehle bol chuki hai (fast) 2) script ke hisaab se 3) baaki
-  // 4) jo fail ho chuki hain wo sabse aakhir me (warna har sentence 4s waste)
-  const order = [];
-  if (ttsGoodLang) order.push(ttsGoodLang);
-  for (const l of pref) order.push(l);
-  order.push(ttsLang);
-  for (const l of TTS_ORDER) order.push(l);
-  for (const l of order) if (l && langs.indexOf(l) === -1 && !ttsDead.has(l)) langs.push(l);
-  for (const l of order) if (l && langs.indexOf(l) === -1) langs.push(l);
-  for (const lang of langs) {
+  const order = buildLangOrder(s);
+  // pehli sentence = probe (2-3 language try), baaki sentences = sirf 1 try
+  const maxTry = ttsSpokeThisReply ? 1 : Math.min(3, order.length);
+  for (let i = 0; i < maxTry; i++) {
+    const lang = order[i];
+    if (!lang) break;
+    if (gen !== undefined && gen !== speakGen) return false;
+    const t0 = Date.now();
     try {
+      writeSpoken(s);
       await speakNative(s, lang, flush);
       ttsLang = lang;
       ttsGoodLang = lang;
       ttsDead.delete(lang);
+      ttsFail[lang] = 0;
+      ttsSpokeThisReply = true;
+      dbg('tts ' + lang + ' ok ' + (Date.now() - t0) + 'ms');
       return true;
     } catch (e) {
       ttsLastError = (e && e.message) ? e.message : String(e);
-      // sirf timeout ko 'dead' maano (voice ka error temporary ho sakta hai)
-      if (/timeout/i.test(ttsLastError)) ttsDead.add(lang);
+      dbg('tts ' + lang + ' fail ' + (Date.now() - t0) + 'ms');
+      if (/timeout/i.test(ttsLastError)) {
+        ttsFail[lang] = (ttsFail[lang] || 0) + 1;
+        if (ttsFail[lang] >= 2) ttsDead.add(lang);
+        if (ttsGoodLang === lang) ttsGoodLang = '';
+        duplexFail();
+      }
       try { await withTimeout(TextToSpeech.stop(), 800); } catch (e2) {}
     }
   }
-  dbg('tts fail: ' + ttsLastError);
   return false;
 }
 
@@ -525,12 +684,13 @@ async function askGemini(promptText) {
       let pending = '';
       let first = true;
       let anySpoke = false;
+      const gen = speakGen;
       // sentences ek-ek karke chain me - har utterance apna timeout sahi rakhe
       let chain = Promise.resolve();
       const enqueue = (s, f) => {
         chain = chain.then(() => {
-          if (!activeLoop) return; // user ne band kar diya - queue ruk jaye
-          return speakSentence(s, f).then((ok) => { if (ok) anySpoke = true; });
+          if (!activeLoop || gen !== speakGen) return; // band / user ne rok diya
+          return speakSentence(s, f, gen).then((ok) => { if (ok) anySpoke = true; });
         });
       };
       const flushTo = (final) => {
@@ -584,7 +744,6 @@ async function askGemini(promptText) {
         history.push({ role: 'model', parts: [{ text: full.trim() }] });
         // TTS bilkul fail hua to text wapas bolo
         if (!anySpoke) return full.trim();
-        await sleep(500);
         isSpeaking = false;
         setOrb('center-orb');
         return '';
@@ -751,64 +910,159 @@ function nStopRec() {
   return withTimeout(SpeechRecognition.stop(), 900).catch(() => {});
 }
 
-async function listenOnce() {
-  const res = await SpeechRecognition.start({
-    language: LANG,
-    maxResults: 1,
-    partialResults: false,
-    popup: false,
-    prompt: ''
-  });
-  const m = res && res.matches;
-  return m && m.length ? String(m[0]).trim() : '';
+// ---- listening: ek window = ek utterance (partialResults ke saath) ----
+// Plugin ka native code: partialResults:true par start() turant resolve hota hai,
+// text `partialResults` event se aata hai (final result bhi usi event se).
+async function bindListeners() {
+  if (listenersBound) return;
+  listenersBound = true;
+  try {
+    await SpeechRecognition.addListener('partialResults', (d) => onPartial((d && d.matches) || []));
+    await SpeechRecognition.addListener('listeningState', (d) => {
+      // sirf CHAL RAHE window ka end maano - purane window ka late event naye window ko
+      // jaldi band nahi karega (warna beech me 1-2s kaan band ho jata hai)
+      if (micRunning && d && d.status === 'stopped') winEnded = true;
+    });
+    dbg('mic listeners: bound');
+  } catch (e) {
+    dbg('mic listener: ' + ((e && e.message) || e));
+  }
 }
 
-async function loop() {
-  let fails = 0;
-  while (activeLoop) {
-    if (isSpeaking || isThinking) { await sleep(120); continue; }
+// user ne bolna shuru kiya - turant chup ho jao (barge-in)
+async function hush() {
+  speakGen++;
+  isSpeaking = false;
+  setOrb('center-orb listening-mode');
+  setStatus('JARVIS SUN RAHA HAI...');
+  try { await withTimeout(TextToSpeech.stop(), 1200); } catch (e) {}
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+}
 
-    let text = '';
+// jo bol rahe hain wo yaad rakho - isse echo filter chalta hai
+function writeSpoken(text) {
+  rememberSpoken(text);
+  spokeSinceWindow = true;
+  isSpeaking = true;
+}
+
+// har partial yahan aata hai (final result bhi isi se aata hai)
+function onPartial(matches) {
+  if (!activeLoop) return;
+  const text = matches && matches[0] ? String(matches[0]).trim() : '';
+  if (!text) return;
+  if (bw(text).length >= bw(winText).length) winText = text; // partial cumulative hai
+  winPartialAt = Date.now();
+  winHasSpeech = true;
+  livePartial = winText;
+  if (liveBox) liveBox.innerText = 'Aap: "' + winText + '"';
+  if (isSpeaking) {
+    // Jarvis bol raha hai: sirf user ke NAYE words dekho, apni awaaz nahi
+    if (bargeHold(text)) {
+      dbg('barge-in: ' + text.slice(0, 40));
+      hush().catch(() => {});
+    }
+    return;
+  }
+  if (!isThinking) {
+    setOrb('center-orb listening-mode');
+    setStatus('JARVIS SUN RAHA HAI...');
+  }
+}
+
+// ek listen window - Jarvis bolte waqt bhi chalti rehti hai (full-duplex)
+async function listenWindow() {
+  winText = '';
+  winPartialAt = 0;
+  winHasSpeech = false;
+  winEnded = false;
+  spokeSinceWindow = isSpeaking; // pehle se bol rahe hain = echo aayega
+  livePartial = '';
+  if (!isSpeaking && !isThinking) {
     setStatus('JARVIS SUN RAHA HAI...');
     setOrb('center-orb listening-mode');
-    try {
-      text = await withTimeout(listenOnce(), 16000);
-      fails = 0;
-    } catch (e) {
-      const msg = String((e && e.message) || e || 'error');
-      text = '';
-      await nStopRec();
-      fails++;
-
-      // "No match" / "timeout" = bas kuch suna nahi, normal hai - chup-chaap dobara suno
-      const quiet = /no match|timeout|speech timeout|7/i.test(msg);
-      if (!quiet) {
-        dbg('mic: ' + msg);
-        statusText.innerText = 'MIC: ' + msg.slice(0, 40);
-      }
-      await sleep(Math.min(400 * fails, 2000));
+  }
+  try {
+    await withTimeout(
+      SpeechRecognition.start({ language: LANG, maxResults: 3, partialResults: true, popup: false, prompt: '' }),
+      6000
+    );
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    if (!/busy|delegate|already/i.test(msg)) dbg('mic start: ' + msg.slice(0, 60));
+    await sleep(400);
+    return '';
+  }
+  micRunning = true;
+  const t0 = Date.now();
+  let pollAt = 0;
+  while (activeLoop) {
+    await sleep(120);
+    const now = Date.now();
+    if (winEnded) { await sleep(320); break; }                  // recognizer ne khud khatam kiya
+    if (winHasSpeech && now - winPartialAt > SILENCE_MS) break;  // user chup ho gaya
+    if (!winHasSpeech && now - t0 > 11000) break;                // kuch bola hi nahi
+    if (now - t0 > 24000) break;                                 // safety cap
+    if (!duplex && isSpeaking) break;                            // half-duplex fallback
+    if (now - pollAt > 450) {
+      pollAt = now;
+      try {
+        const st = await withTimeout(SpeechRecognition.isListening(), 800);
+        if (st && st.listening === false) { await sleep(200); break; } // error/no-match par bhi atkega nahi
+      } catch (e) {}
     }
-    if (!activeLoop) break;
-    setOrb('center-orb');
-    if (!text) continue;
+  }
+  micRunning = false;
+  if (!winEnded) {
+    try { await withTimeout(SpeechRecognition.stop(), 900); } catch (e) {}
+    await sleep(260); // final result aane do
+  }
+  const said = takeUserText(winText);
+  winText = '';
+  if (liveBox && !said) liveBox.innerText = '';
+  return said;
+}
 
-    transcriptDiv.innerText = 'Aap: "' + text + '"';
+// mic pump: hamesha sunta rehta hai, jo mila wo queue me daal deta hai
+async function micPump() {
+  await bindListeners();
+  while (activeLoop) {
+    if (!duplex && (isSpeaking || isThinking)) { await sleep(150); continue; }
+    const said = await listenWindow();
+    if (!activeLoop) break;
+    if (!said) continue;
+    dbg('suna: ' + said.slice(0, 44));
+    userQueue.push(said);
+    while (userQueue.length > 2) userQueue.shift();
+  }
+}
+
+// brain: queue se uthata hai, samajhta hai, jawab deta hai
+async function brain() {
+  while (activeLoop) {
+    if (!userQueue.length) { await sleep(60); continue; }
+    const raw = userQueue.shift();
+    if (isSpeaking) await hush();
+    if (liveBox) liveBox.innerText = '';
+    transcriptDiv.innerText = 'Aap: "' + raw + '"';
     isThinking = true;
     setOrb('center-orb thinking-mode');
     setStatus('JARVIS SOCH RAHA HAI...');
-
     try {
-      const handled = await routeLocal(text);
+      const handled = await routeLocal(raw);
       if (!handled) {
-        const ans = await askGemini(text);
+        const ans = await askGemini(raw);
         if (ans) await say(ans);
       }
     } catch (e) {
       errorBox.innerText = 'Error: ' + e.message;
     } finally {
       isThinking = false;
+      if (activeLoop) {
+        setOrb('center-orb listening-mode');
+        setStatus('JARVIS SUN RAHA HAI...');
+      }
     }
-    await sleep(150);
   }
 }
 
@@ -840,10 +1094,19 @@ async function stopEverything() {
   activeLoop = false;
   isSpeaking = false;
   isThinking = false;
+  speakGen++;
+  micRunning = false;
+  winText = '';
+  livePartial = '';
+  novelBuffer = '';
+  userQueue = [];
+  try { await SpeechRecognition.removeAllListeners(); } catch (e) {}
+  listenersBound = false;
   await nStopRec();
   try { await withTimeout(TextToSpeech.stop(), 2000); } catch (e) {}
   try { speechSynthesis.cancel(); } catch (e) {}
   try { await BackgroundMode.disable(); } catch (e) {}
+  if (liveBox) liveBox.innerText = '';
   setOrb('center-orb');
   setStatus('STANDBY - TAP TO START');
 }
@@ -875,11 +1138,15 @@ async function startAssistant() {
   } catch (e) { dbg('contacts ask: ' + ((e && e.message) || e)); }
 
   await ttsBoot;
-  // greeting sabse pehle - koi muted 'ok' ya heavy diagnostic beech me nahi
+  // greeting pehle, mic uske BAAD - isse start par awaaz atakti nahi
   await say('Namaste sir. Jarvis taiyaar hai. Kahiye, main kya karoon?');
+  if (!activeLoop) return;
+  applyModeTag();
   // diagnostics greeting ke BAAD, background me (awaaz ko rok kar nahi)
-  setTimeout(() => { ttsProbe().catch(() => {}); }, 2500);
-  loop().catch((e) => { errorBox.innerText = 'Loop: ' + e.message; });
+  setTimeout(() => { ttsProbe().catch(() => {}); }, 3500);
+  // ab do parallel loops: mic hamesha sunta hai, brain jawab deta hai
+  micPump().catch((e) => { errorBox.innerText = 'Mic: ' + e.message; });
+  brain().catch((e) => { errorBox.innerText = 'Loop: ' + e.message; });
 }
 
 core.onclick = async () => {
@@ -916,6 +1183,19 @@ if (voiceBtn) {
     say(voiceMode === 'male' ? 'Male voice chalu hai sir.' : 'Female voice chalu hai sir.');
   };
 }
+
+// ---- duplex toggle: DUPLEX = bolte waqt bhi sunta hai (default) ----
+if (modeBtn) {
+  modeBtn.onclick = (e) => {
+    e.stopPropagation();
+    duplex = !duplex;
+    duplexFails = 0;
+    applyModeTag();
+    dbg('mode: ' + (duplex ? 'duplex' : 'half'));
+    say(duplex ? 'Full duplex chalu hai sir, bolte waqt bhi sununga.' : 'Half duplex hai sir, meri baat ke baad sununga.');
+  };
+}
+applyModeTag();
 
 // app start hote hi TTS garam karo (chup warm-up) - sirf native app me, browser preview me nahi
 setTimeout(() => {
