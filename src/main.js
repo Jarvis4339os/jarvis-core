@@ -1,8 +1,14 @@
+// JARVIS v6 - streaming replies, HD orb HUD, fast TTS language order
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { BackgroundMode } from '@anuradev/capacitor-background-mode';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Contacts } from '@capacitor-community/contacts';
+import { registerPlugin } from '@capacitor/core';
+
+// custom plugin - phone ke SARE installed apps ka label + package deta hai
+// (build me workflow android/app/src/main/java/com/jarvis/hud/AppListPlugin.java banata hai)
+const AppList = registerPlugin('AppList');
 
 const WORKER_URL = 'https://jarvis-api.sachinsainimbd4339.workers.dev';
 const LANG = 'hi-IN';
@@ -24,6 +30,8 @@ let contactCache = null;
 let ttsLang = 'hi-IN';
 let ttsVoice = null;
 let ttsReady = false;
+let ttsGoodLang = ''; // jo language SACH ME bol chuki hai (proven)
+const ttsDead = new Set(); // jo language timeout/fail hui - dobara try karke time barbaad na karo
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const setOrb = (c) => { orb.className = c; };
@@ -129,6 +137,43 @@ async function openFirst(app) {
   return false;
 }
 
+// ---- installed apps (AppList plugin) ----
+let installedApps = null;
+async function getInstalledApps() {
+  if (installedApps) return installedApps;
+  try {
+    const r = await AppList.list();
+    installedApps = (r.apps || [])
+      .map((a) => ({ label: String(a.label || ''), pkg: String(a.pkg || ''), key: norm(a.label) }))
+      .filter((a) => a.key.length >= 3 && a.pkg);
+    dbg('installed apps: ' + installedApps.length);
+  } catch (e) {
+    installedApps = [];
+    dbg('AppList: ' + ((e && e.message) || e));
+  }
+  return installedApps;
+}
+
+// kholne ka naam: filler words hatao, phir labels se match karo
+const OPENER_WORDS = new Set([
+  'khol', 'kholo', 'kholna', 'kholde', 'open', 'chalao', 'chala', 'chal', 'launch',
+  'karo', 'kar', 'kardo', 'do', 'lagao', 'please', 'app', 'bana', 'banao',
+  'ji', 'sir', 'jarvis', 'mera', 'mere', 'meri', 'abhi', 'zara', 'jara', 'bhai'
+]);
+async function matchInstalledApp(latinLower) {
+  const words = String(latinLower || '').split(/[^a-z0-9]+/).filter((w) => w && !OPENER_WORDS.has(w));
+  const q = words.join('');
+  if (q.length < 3) return null;
+  const list = await getInstalledApps();
+  let best = null, score = 0;
+  for (const a of list) {
+    let s = similarity(a.key, q);
+    if (q.indexOf(a.key) !== -1) s = Math.max(s, 0.95);
+    if (s > score) { score = s; best = a; }
+  }
+  return score >= 0.6 ? best : null;
+}
+
 async function loadContacts() {
   if (contactCache) return contactCache;
   let st = '';
@@ -206,19 +251,62 @@ async function initTts() {
   } catch (e) {
     ttsLastError = (e && e.message) ? e.message : String(e);
   }
+  await pickVoice();
 }
 
+// engine ki voice list se gender-appropriate voice dhoondho
+// NOTE: "female" naam me bhi "male" hota hai - isliye male check me female exclude karo
+async function pickVoice() {
+  try {
+    const v = await TextToSpeech.getSupportedVoices();
+    const arr = (v && v.voices) || [];
+    if (!arr.length) { ttsVoice = -1; return; }
+    const want = String(ttsLang || 'hi-IN').split('-')[0].toLowerCase();
+    let idx = -1;
+    for (let i = 0; i < arr.length; i++) {
+      const nm = String(arr[i].name || '').toLowerCase();
+      const lg = String(arr[i].lang || '').toLowerCase();
+      if (lg && lg.indexOf(want) !== 0 && nm.indexOf(want) === -1) continue;
+      if (voiceMode === 'male') {
+        if (nm.indexOf('male') === -1) continue;
+        if (nm.indexOf('female') !== -1) continue;
+      } else {
+        if (nm.indexOf('female') === -1 && nm.indexOf('fem') === -1) continue;
+      }
+      idx = i;
+      break;
+    }
+    ttsVoice = idx;
+    dbg('voice(' + voiceMode + '): ' + (idx >= 0 ? String(arr[idx].name).slice(0, 26) : 'engine default'));
+  } catch (e) {
+    ttsVoice = -1;
+  }
+}
+
+// engine voice mili to uska apna natural pitch, warna pitch se gender banao
+function currentPitch() {
+  if (typeof ttsVoice === 'number' && ttsVoice >= 0) return 1.0;
+  return voiceMode === 'male' ? 0.85 : TTS_PITCH;
+}
+
+// engine ko chup-chaap taiyaar karo (bina koi awaaz / mute 'ok' bole)
+// pehle yahan muted 'ok' bol kar 3s wait hota tha - wahi start par atakne ki wajah tha
+async function bootTts() {
+  try { await initTts(); } catch (e) {}
+}
+
+// ek sentence bolne ka timeout - bahut lamba timeout = dheera jawab
 function ttsTimeoutFor(text) {
-  return 8000 + text.length * 160;
+  return 3500 + text.length * 110;
 }
 
-async function speakNative(text, lang) {
+async function speakNative(text, lang, flush) {
   const out = /^hi/i.test(lang) ? text : devaToLatin(text);
-  // NOTE: voice index jaan bujh kar nahi bhejte - engine ka default voice sabse reliable hai
-  await withTimeout(
-    TextToSpeech.speak({ text: out, lang: lang, rate: 1.0, pitch: TTS_PITCH, volume: 1.0 }),
-    ttsTimeoutFor(out)
-  );
+  const opts = { text: out, lang: lang, rate: 1.0, pitch: currentPitch(), volume: 1.0 };
+  if (typeof ttsVoice === 'number' && ttsVoice >= 0) opts.voice = ttsVoice;
+  // flush=false = nayi line purani queue ke peeche lagti hai (streaming jawab ke liye)
+  if (flush === false) opts.queueStrategy = 1;
+  await withTimeout(TextToSpeech.speak(opts), ttsTimeoutFor(out));
 }
 
 function webSpeak(text, lang) {
@@ -240,38 +328,20 @@ function webSpeak(text, lang) {
 async function say(rawText) {
   const text = String(rawText);
   transcriptDiv.innerText = 'JARVIS: ' + text;
+  const wasActive = activeLoop;
   isSpeaking = true;
   setOrb('center-orb speaking');
   setStatus('JARVIS BOL RAHA HAI...');
 
-  // mic band karo, par plugin ka stop() kabhi resolve nahi karta - isliye timeout lagaya hai
-  await nStopRec();
-  try { await withTimeout(TextToSpeech.stop(), 2000); } catch (e) {}
-
   try {
     await initTts();
-
-    const candidates = [];
-    // Devanagari text = hi-IN, Latin (Hinglish) text = en-IN pehle (engine Hindi me slow/missing hai)
-    const hasDev = /[\u0900-\u097F]/.test(text);
-    const preferred = hasDev ? ['hi-IN', 'en-IN', 'en-US'] : ['en-IN', 'en-US', 'hi-IN'];
-    for (const l of [...preferred, ttsLang, ...(ttsAvailable || []), ...TTS_ORDER]) {
-      if (l && candidates.indexOf(l) === -1) candidates.push(l);
-    }
-
+    // sentence-wise bolo - pehla sentence turant shuru hota hai, awaaz atakti nahi
+    const chunks = splitSentences(text);
     let spoke = false;
-    for (const lang of candidates) {
-      try {
-        await speakNative(text, lang);
-        spoke = true;
-        ttsLang = lang;
-        break;
-      } catch (e) {
-        ttsLastError = (e && e.message) ? e.message : String(e);
-        try { await withTimeout(TextToSpeech.stop(), 1500); } catch (e2) {}
-      }
+    for (let i = 0; i < chunks.length; i++) {
+      if (wasActive && !activeLoop) break; // user ne beech me band kar diya
+      if (await speakSentence(chunks[i], i === 0)) spoke = true;
     }
-
     if (!spoke) {
       const web = await webSpeak(devaToLatin(text), 'en-IN');
       if (!web) {
@@ -281,9 +351,10 @@ async function say(rawText) {
     }
   } finally {
     // awaaz khatam hone ke baad mic ko thoda waqt do, warna recognizer busy ho jata hai
-    await sleep(700);
+    await sleep(500);
     isSpeaking = false;
     setOrb('center-orb');
+    if (!wasActive && !activeLoop) setStatus('TAP CORE TO START');
   }
 }
 
@@ -330,11 +401,12 @@ async function ttsProbe() {
 
 async function voiceTest() {
   dbg('--- voice test ---');
+  await initTts();
   for (const lang of ['hi-IN', 'en-IN', 'en-US']) {
     const t0 = Date.now();
     try {
       await withTimeout(
-        TextToSpeech.speak({ text: 'Ek do teen. Jarvis bol raha hai.', lang: lang, rate: 1.0, pitch: TTS_PITCH, volume: 1.0 }),
+        TextToSpeech.speak({ text: 'Ek do teen. Jarvis bol raha hai.', lang: lang, rate: 1.0, pitch: currentPitch(), volume: 1.0, voice: (typeof ttsVoice === 'number' && ttsVoice >= 0) ? ttsVoice : undefined }),
         14000
       );
       dbg(lang + ': OK (' + (Date.now() - t0) + 'ms)');
@@ -353,8 +425,83 @@ function nowContext() {
   return 'Aaj ' + date + ' hai, abhi ' + time + ' baje hain.';
 }
 
+// ---- text ko sentences me todo (boundary: . ! ? danda \u0964 newline) ----
+function splitSentences(text) {
+  const s = String(text || '').trim();
+  if (!s) return [];
+  const out = [];
+  let cur = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    cur += c;
+    const isEnd = (c === '.' || c === '!' || c === '?' || c === '\u0964' || c === '\n');
+    if (!isEnd) continue;
+    if (c === '.' && s[i + 1] && s[i + 1] >= '0' && s[i + 1] <= '9') continue; // 3.5 jaisa decimal
+    const t = cur.trim();
+    if (t) out.push(t);
+    cur = '';
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out.length ? out : [s];
+}
+
+// pehla sentence boundary dhoondho (. ? ! danda \u0964 newline) - decimal (3.5) mat todo
+function firstBoundary(s) {
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '.' || c === '!' || c === '?' || c === '\u0964' || c === '\n') {
+      if (c === '.' && s[i + 1] && s[i + 1] >= '0' && s[i + 1] <= '9') continue;
+      return i + 1;
+    }
+  }
+  return -1;
+}
+
+// ek sentence bolo - pehli flush, baaki queue me (streaming ke liye)
+async function speakSentence(text, flush) {
+  const s = String(text || '').trim();
+  if (!s) return false;
+  if (flush) {
+    // mic stop + purana TTS clear - dono parallel, pehli awaaz jaldi aaye
+    nStopRec();
+    try { await withTimeout(TextToSpeech.stop(), 1000); } catch (e) {}
+    isSpeaking = true;
+    setOrb('center-orb speaking');
+    setStatus('JARVIS BOL RAHA HAI...');
+  }
+  const langs = [];
+  // Devanagari text = hi-IN pehle, Latin (Hinglish) = en-IN pehle
+  const hasDev = /[\u0900-\u097F]/.test(s);
+  const pref = hasDev ? ['hi-IN', 'en-IN', 'en-US'] : ['en-IN', 'en-US', 'hi-IN'];
+  // order: 1) jo language pehle bol chuki hai (fast) 2) script ke hisaab se 3) baaki
+  // 4) jo fail ho chuki hain wo sabse aakhir me (warna har sentence 4s waste)
+  const order = [];
+  if (ttsGoodLang) order.push(ttsGoodLang);
+  for (const l of pref) order.push(l);
+  order.push(ttsLang);
+  for (const l of TTS_ORDER) order.push(l);
+  for (const l of order) if (l && langs.indexOf(l) === -1 && !ttsDead.has(l)) langs.push(l);
+  for (const l of order) if (l && langs.indexOf(l) === -1) langs.push(l);
+  for (const lang of langs) {
+    try {
+      await speakNative(s, lang, flush);
+      ttsLang = lang;
+      ttsGoodLang = lang;
+      ttsDead.delete(lang);
+      return true;
+    } catch (e) {
+      ttsLastError = (e && e.message) ? e.message : String(e);
+      // sirf timeout ko 'dead' maano (voice ka error temporary ho sakta hai)
+      if (/timeout/i.test(ttsLastError)) ttsDead.add(lang);
+      try { await withTimeout(TextToSpeech.stop(), 800); } catch (e2) {}
+    }
+  }
+  dbg('tts fail: ' + ttsLastError);
+  return false;
+}
+
 async function askGemini(promptText) {
-  const payload = '[' + nowContext() + ' Isi ko sach maano, apni purani date use mat karo.] ' + promptText;
+  const payload = '[' + nowContext() + ' Isi ko sach maano, apni purani date use mat karo.] ' + promptText + ' [Jawab sirf 1-2 line ka rakho, bolne ke liye hai.]';
   history.push({ role: 'user', parts: [{ text: payload }] });
   if (history.length > 8) history = history.slice(-8);
   while (history.length && history[0].role !== 'user') history.shift();
@@ -363,9 +510,89 @@ async function askGemini(promptText) {
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history: history }),
-      signal: AbortSignal.timeout(25000)
+      body: JSON.stringify({ history: history, stream: true }),
+      signal: AbortSignal.timeout(60000)
     });
+    const ctype = (res.headers.get('content-type') || '').toLowerCase();
+
+    // ---- naya path: worker SSE stream bhejta hai - pehla sentence milti hi bolo ----
+    if (res.ok && res.body && ctype.indexOf('event-stream') >= 0) {
+      await initTts();
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      let full = '';
+      let pending = '';
+      let first = true;
+      let anySpoke = false;
+      // sentences ek-ek karke chain me - har utterance apna timeout sahi rakhe
+      let chain = Promise.resolve();
+      const enqueue = (s, f) => {
+        chain = chain.then(() => {
+          if (!activeLoop) return; // user ne band kar diya - queue ruk jaye
+          return speakSentence(s, f).then((ok) => { if (ok) anySpoke = true; });
+        });
+      };
+      const flushTo = (final) => {
+        for (;;) {
+          let cut = firstBoundary(pending);
+          if (cut < 0 && pending.length > 300) cut = pending.lastIndexOf(' ');
+          if (cut <= 0) break;
+          const s = pending.slice(0, cut).trim();
+          pending = pending.slice(cut);
+          if (!s) continue;
+          const f = first;
+          first = false;
+          enqueue(s, f);
+        }
+        if (final && pending.trim()) {
+          const s = pending.trim();
+          pending = '';
+          const f = first;
+          first = false;
+          enqueue(s, f);
+        }
+      };
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buf += dec.decode(chunk.value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (line.indexOf('data:') !== 0) continue;
+          const data = line.slice(5).trim();
+          if (!data || data === '[DONE]') continue;
+          try {
+            const j = JSON.parse(data);
+            const cand = j.candidates && j.candidates[0];
+            const parts = cand && cand.content && cand.content.parts;
+            const t = parts ? parts.map((p) => p.text || '').join('') : '';
+            if (t) {
+              full += t;
+              pending += t;
+              transcriptDiv.innerText = 'JARVIS: ' + full.trim();
+              flushTo(false);
+            }
+          } catch (e) {}
+        }
+      }
+      flushTo(true);
+      await chain;
+      if (full.trim()) {
+        history.push({ role: 'model', parts: [{ text: full.trim() }] });
+        // TTS bilkul fail hua to text wapas bolo
+        if (!anySpoke) return full.trim();
+        await sleep(500);
+        isSpeaking = false;
+        setOrb('center-orb');
+        return '';
+      }
+      throw new Error('khaali jawab');
+    }
+
+    // ---- purana path: worker JSON deta hai (abhi tak wahi deployed hai) ----
     const data = await res.json();
     if (!res.ok || !data.reply) {
       history.pop();
@@ -483,6 +710,7 @@ async function routeLocal(raw) {
   }
 
   if (/(khol|kholo|open|chalao|chala do|launch|\u0916\u094B\u0932|\u0916\u094B\u0932\u094B|\u0913\u092A\u0928|\u091A\u093E\u0932\u0942)/.test(probe)) {
+    // 1) built-in list (deep links - sabse reliable)
     for (const app of APPS) {
       if (app.key.some((k) => probe.includes(k))) {
         const ok = await openFirst(app);
@@ -490,7 +718,16 @@ async function routeLocal(raw) {
         return true;
       }
     }
-    await say('Ye app list me nahi hai sir. YouTube, WhatsApp, Instagram, Telegram, Facebook, Snapchat, Spotify, Gmail, Maps, Play Store, PhonePe, GPay, Paytm, Swiggy, Zomato, Uber, Netflix, LinkedIn, Amazon, Flipkart, Hotstar me se koi boliye.');
+    // 2) phone me installed SARI apps (AppList plugin se) - koi bhi app bol sakte hain
+    try {
+      const dyn = await matchInstalledApp(latin);
+      if (dyn) {
+        const ok = await openFirst({ urls: [dyn.pkg] });
+        await say(ok ? dyn.label + ' khol raha hoon sir.' : dyn.label + ' khula nahi, sir.');
+        return true;
+      }
+    } catch (e) {}
+    await say('Wo app mere paas nahi hai sir. YouTube, WhatsApp, Instagram, Telegram, Facebook, Snapchat, Spotify, Gmail, Maps, Play Store, PhonePe, GPay, Paytm, Swiggy, Zomato, Uber, Netflix, LinkedIn, Amazon, Flipkart, Hotstar ya koi aur installed app boliye.');
     return true;
   }
 
@@ -615,6 +852,8 @@ async function startAssistant() {
   errorBox.innerText = '';
   activeLoop = true;
   setStatus('START HO RAHA HAI...');
+  // TTS ko permissions ke SAATH parallel taiyaar karo (inline wait nahi)
+  const ttsBoot = bootTts();
   try {
     await ensurePermissions();
   } catch (e) {
@@ -635,9 +874,11 @@ async function startAssistant() {
     }
   } catch (e) { dbg('contacts ask: ' + ((e && e.message) || e)); }
 
-  await initTts();
-  await ttsProbe();
+  await ttsBoot;
+  // greeting sabse pehle - koi muted 'ok' ya heavy diagnostic beech me nahi
   await say('Namaste sir. Jarvis taiyaar hai. Kahiye, main kya karoon?');
+  // diagnostics greeting ke BAAD, background me (awaaz ko rok kar nahi)
+  setTimeout(() => { ttsProbe().catch(() => {}); }, 2500);
   loop().catch((e) => { errorBox.innerText = 'Loop: ' + e.message; });
 }
 
@@ -651,6 +892,33 @@ if (testBtn) {
     e.stopPropagation();
     errorBox.innerText = '';
     const okLang = await voiceTest();
-    if (okLang) { ttsLang = okLang; dbg('ttsLang set: ' + okLang); }
+    if (okLang) { ttsLang = okLang; ttsGoodLang = okLang; ttsDead.delete(okLang); dbg('ttsLang set: ' + okLang); }
   };
 }
+
+// ---- voice mode toggle: male (default, jaisa aapne maanga) <-> female ----
+const voiceBtn = document.getElementById('voiceBtn');
+const VOICE_KEY = 'jarvis_voice_mode';
+let voiceMode = 'male';
+try { voiceMode = localStorage.getItem(VOICE_KEY) || 'male'; } catch (e) {}
+function applyVoiceMode() {
+  if (voiceBtn) voiceBtn.innerText = 'VOICE: ' + voiceMode.toUpperCase();
+}
+applyVoiceMode();
+if (voiceBtn) {
+  voiceBtn.onclick = (e) => {
+    e.stopPropagation();
+    voiceMode = voiceMode === 'male' ? 'female' : 'male';
+    try { localStorage.setItem(VOICE_KEY, voiceMode); } catch (err) {}
+    applyVoiceMode();
+    dbg('voice mode: ' + voiceMode);
+    pickVoice();
+    say(voiceMode === 'male' ? 'Male voice chalu hai sir.' : 'Female voice chalu hai sir.');
+  };
+}
+
+// app start hote hi TTS garam karo (chup warm-up) - sirf native app me, browser preview me nahi
+setTimeout(() => {
+  const native = window.Capacitor && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform();
+  if (native) bootTts();
+}, 400);
